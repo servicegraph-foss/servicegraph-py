@@ -1,0 +1,44 @@
+# Essential files for PyPI distribution
+include LICENSE
+include NOTICE
+include README.md
+include pyproject.toml
+
+# Core package source code
+recursive-include src *.py
+recursive-include src *.pyi
+
+# Unit tests for development and verification
+recursive-include tests *.py
+
+# Essential documentation
+include CHANGELOG.md
+
+# Exclude compiled Python files
+global-exclude *.pyc
+global-exclude *.pyo
+global-exclude *.pyd
+global-exclude __pycache__
+global-exclude *.so
+global-exclude *.dylib
+
+# Exclude development and build artifacts
+global-exclude .git*
+global-exclude .tox
+global-exclude .coverage
+global-exclude .pytest_cache
+global-exclude *.egg-info
+global-exclude build
+global-exclude dist
+global-exclude .mypy_cache
+global-exclude .venv
+global-exclude venv
+global-exclude htmlcov
+
+# Exclude IDE and editor files
+global-exclude .vscode
+global-exclude .idea
+global-exclude *.swp
+global-exclude *.swo
+global-exclude *~
+global-exclude .DS_Store

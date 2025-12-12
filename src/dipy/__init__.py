@@ -1,0 +1,78 @@
+"""
+dipy - A lightweight dependency injection framework for Python
+
+This package provides a simple yet powerful dependency injection container
+with support for service lifetimes, configuration management, and type safety.
+"""
+
+__version__ = "0.1.0"
+__author__ = "dipy Contributors"
+__license__ = "See LICENSE file"
+
+# Core dependency injection components
+from .service_collection import ServiceCollection
+from .service_provider import ServiceProvider
+from .service_registration import ServiceRegistration
+from .service_lifetime import ServiceLifetime
+from .service_locator import get_service, get_named_service
+
+# Configuration management
+from .i_configuration import IConfiguration
+from .configuration import Configuration
+from .i_configuration_builder import IConfigurationBuilder  
+from .configuration_builder import ConfigurationBuilder
+from .i_configuration_section import IConfigurationSection
+from .configuration_section import ConfigurationSection
+
+# Application and context
+from .application_builder import ApplicationBuilder
+from .request_context import RequestContext
+
+# Type hints and utilities
+from .type_hints import *
+from .dependency_injection_utils import *
+
+# Public API - only expose what users should directly interact with
+__all__ = [
+    # Version info
+    "__version__",
+    
+    # Core DI classes
+    "ServiceCollection",
+    "ServiceProvider",
+    "ServiceLifetime",
+    "get_service",
+    "get_named_service",
+    
+    # Configuration classes
+    "Configuration",
+    "ConfigurationBuilder",
+    "ConfigurationSection",
+    
+    # Application setup
+    "ApplicationBuilder",
+    "RequestContext",
+    
+    # Abstract interfaces (for type hinting)
+    "IConfiguration",
+    "IConfigurationBuilder",
+    "IConfigurationSection",
+]
+
+# Package metadata
+__description__ = "A lightweight dependency injection framework for Python"
+__url__ = "https://github.com/your-org/dipy"  # Update with actual URL
+__maintainer__ = "dipy Contributors"
+__maintainer_email__ = "maintainers@dipy.dev"  # Update with actual email
+
+# Minimum Python version requirement
+import sys
+if sys.version_info < (3, 8):
+    raise ImportError(
+        "dipy requires Python 3.8 or later. "
+        f"You are using Python "
+        f"{sys.version_info.major}.{sys.version_info.minor}."
+    )
+
+# Clean up module namespace
+del sys
