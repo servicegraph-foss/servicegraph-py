@@ -5,7 +5,20 @@ All notable changes to the servicegraph project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.1.0] - 2025-01-XX
+## [0.1.1] - 2025-12-13
+
+### Changed
+- **Python Compatibility** - Updated minimum required Python version from 3.8 to 3.9 due to syntax compatibility issues
+
+### Fixed
+- Resolved syntax compatibility issues that prevented proper operation on Python 3.8
+
+### Breaking Changes
+- **Minimum Python Version** - Python 3.9+ is now required. Python 3.8 is no longer supported.
+
+## [0.1.0] - 2025-01-XX **[DEPRECATED]**
+
+> **⚠️ DEPRECATED:** This version is deprecated and will not work correctly due to Python syntax compatibility issues. Please upgrade to version 0.1.1 or later, which requires Python 3.9+.
 
 ### Added
 
@@ -45,7 +58,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Comprehensive Documentation** - Detailed README with examples and best practices
 
 ### Technical Specifications
-- **Python Compatibility** - Python 3.8+ support
+- **Python Compatibility** - ~~Python 3.8+ support~~ **DEPRECATED - Does not work, use version 0.1.1+ with Python 3.9+**
 - **Zero Dependencies** - No external runtime dependencies (except typing-extensions for Python < 3.10)
 - **Memory Efficient** - Minimal metadata overhead with automatic cleanup
 - **Fast Resolution** - O(1) singleton resolution after initialization, O(n) transient resolution based on dependency depth
@@ -77,7 +90,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Release Notes
 
-### Version 0.1.0 - Initial Release
+### Version 0.1.1 - Python Compatibility Update
+
+This release addresses critical syntax compatibility issues discovered in version 0.1.0. Due to incompatibilities with Python 3.8, the minimum required Python version has been updated to 3.9.
+
+**Key Changes:**
+- **Updated Python Requirement** - Minimum Python version is now 3.9+ (previously 3.8+)
+- **Syntax Fixes** - Resolved compatibility issues that prevented proper operation on Python 3.8
+
+**Breaking Changes:** 
+- Python 3.8 is no longer supported. Users must upgrade to Python 3.9 or later.
+
+**Migration Guide:** 
+- Upgrade your Python environment to version 3.9 or later before installing version 0.1.1
+- No code changes required; existing code using servicegraph will work without modification
+
+**Deprecation Notice:**
+- Version 0.1.0 is now deprecated and should not be used. It contains syntax compatibility issues that prevent proper operation.
+
+### Version 0.1.0 - Initial Release **[DEPRECATED]**
+
+> **⚠️ WARNING:** This version is deprecated due to Python syntax compatibility issues. Use version 0.1.1 or later instead.
 
 This initial release establishes servicegraph as a professional-grade dependency injection framework for Python, with particular strength in stateless runtime environments like Azure Functions. The framework provides enterprise-level DI capabilities while maintaining Python's characteristic simplicity and ease of use.
 
@@ -93,6 +126,7 @@ This initial release establishes servicegraph as a professional-grade dependency
 **Migration Guide:** None required (initial release)
 
 **Known Issues:** 
+- **CRITICAL:** Python 3.8 syntax compatibility issues render this version non-functional (fixed in 0.1.1)
 - Middleware system is Azure Functions specific; FastAPI integration planned for future release
 - Async service resolution not yet supported; planned for future release
 

@@ -5,7 +5,7 @@ This package provides a simple yet powerful dependency injection container
 with support for service lifetimes, configuration management, and type safety.
 """
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 __author__ = "ServiceGraph Contributors"
 __license__ = "See LICENSE file"
 
@@ -64,9 +64,9 @@ __maintainer_email__ = "servicegraph.contact@gmail.com"
 # Minimum Python version requirement
 import sys
 
-if sys.version_info < (3, 8):
+if sys.version_info < (3, 9):
     raise ImportError(
-        "servicegraph requires Python 3.8 or later. "
+        "servicegraph requires Python 3.9 or later. "
         f"You are using Python "
         f"{sys.version_info.major}.{sys.version_info.minor}."
     )
