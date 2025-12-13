@@ -21,8 +21,8 @@ class ServiceCollection:
 
     def _validate_implementation_type(
         self,
-        service_type: type[Any],
-        implementation: type[Any],
+        service_type: Any,
+        implementation: Any,
         method_name: str = "add",
     ) -> None:
         """
@@ -42,20 +42,19 @@ class ServiceCollection:
             return
 
         # Check if implementation is a subclass of service_type
+        # Note: issubclass() can raise TypeError for some complex generic types
         try:
-            if not issubclass(implementation, service_type):
-                raise TypeError(
-                    f"Invalid registration in {method_name}(): "
-                    f"'{implementation.__name__}' does not implement '{service_type.__name__}'. "
-                    f"Ensure that {implementation.__name__} inherits from or implements {service_type.__name__}."
-                )
-        except TypeError as e:
-            # Handle any remaining edge cases gracefully
-            if "issubclass()" in str(e):
-                # For complex types we can't validate, just skip validation
-                pass
-            else:
-                raise
+            is_valid_subclass = issubclass(implementation, service_type)
+        except TypeError:
+            # Can't validate complex types like generics - skip validation
+            return
+
+        if not is_valid_subclass:
+            raise TypeError(
+                f"Invalid registration in {method_name}(): "
+                f"'{implementation.__name__}' does not implement '{service_type.__name__}'. "
+                f"Ensure that {implementation.__name__} inherits from or implements {service_type.__name__}."
+            )
 
     # Core registration methods
     def add(

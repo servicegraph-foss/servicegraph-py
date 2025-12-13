@@ -84,7 +84,7 @@ class ScopedServiceContextManager:
         # consistent transient instances during service creation, but the session
         # itself should persist and be managed separately by the caller.
 
-    def __getattr__(self, name):
+    def __getattr__(self, name: str) -> Any:
         # Prevent direct access to service methods without context manager
         if not self._entered or self._exited:
             service_type = type(self._service_instance).__name__
@@ -197,7 +197,7 @@ class ServiceProvider:
             raise ServiceNotRegisteredException(error_msg)
 
         registration = self._collection._registrations[registration_key]
-        return self._get_or_create_instance(registration, session_id)
+        return cast(T, self._get_or_create_instance(registration, session_id))
 
     def get_named_service(
         self, service_type: type[T], name: str, session_id: Optional[str] = None
@@ -233,7 +233,9 @@ class ServiceProvider:
                 error_msg += (
                     f"\n\nAvailable named services for {service_type.__name__}:\n"
                 )
-                for available_name in sorted(available_names):
+                for available_name in sorted(
+                    [n for n in available_names if n is not None]
+                ):
                     error_msg += f"  • '{available_name}'\n"
                 error_msg += "\nTo use an available service:\n"
                 error_msg += f"  provider.get_named_service({service_type.__name__}, '{available_names[0]}')"
@@ -263,11 +265,12 @@ class ServiceProvider:
         :param session_id: Optional session ID for session-scoped transient services
         :return: Dictionary mapping names to service instances
         """
-        result = {}
+        result: dict[str, T] = {}
         for registration in self._collection._registrations.values():
             if registration.service_type == service_type and registration.is_named:
-                result[registration.name] = self._get_or_create_instance(
-                    registration, session_id
+                assert registration.name is not None
+                result[registration.name] = cast(
+                    T, self._get_or_create_instance(registration, session_id)
                 )
 
         return result
@@ -344,7 +347,7 @@ class ServiceProvider:
                 "is_factory": is_factory,
                 "is_instance": (
                     "instance_factory" in str(registration.factory)
-                    if registration.factory
+                    if registration.factory is not None
                     else False
                 ),
             }
@@ -593,6 +596,9 @@ class ServiceProvider:
                     session_id = f"scoped_{uuid.uuid4().hex[:8]}"
 
             # Initialize tracking list for this session if needed
+            assert (
+                session_id is not None
+            ), "Session ID must be provided for scoped services"
             if session_id not in self._scoped_instances:
                 self._scoped_instances[session_id] = []
 

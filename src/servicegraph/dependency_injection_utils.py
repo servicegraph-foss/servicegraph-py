@@ -12,7 +12,7 @@ class NamedService:
     def __init__(self, name: str):
         self.name = name
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"NamedService(name='{self.name}')"
 
 
@@ -72,6 +72,6 @@ def get_base_type(annotation: Any) -> type[Any]:
     if get_origin(annotation) is Annotated:
         args = get_args(annotation)
         if args:
-            return args[0]  # First argument is the base type
+            return args[0]  # type: ignore[no-any-return]
 
-    return annotation
+    return annotation  # type: ignore[no-any-return]

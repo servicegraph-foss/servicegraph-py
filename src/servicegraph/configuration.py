@@ -20,21 +20,21 @@ class Configuration(IConfiguration):
         Returns the value with its original type (str, int, bool, float, etc.).
         """
         keys = key.split(":")
-        current = self._data
+        current: Any = self._data
 
         for k in keys:
-            if isinstance(current, dict):
-                # Case-insensitive key lookup
-                matching_key = None
-                for dict_key in current.keys():
-                    if dict_key.lower() == k.lower():
-                        matching_key = dict_key
-                        break
+            if not isinstance(current, dict):
+                return default_value
 
-                if matching_key:
-                    current = current[matching_key]
-                else:
-                    return default_value
+            # Case-insensitive key lookup
+            matching_key = None
+            for dict_key in current.keys():
+                if dict_key.lower() == k.lower():
+                    matching_key = dict_key
+                    break
+
+            if matching_key:
+                current = current[matching_key]
             else:
                 return default_value
 
@@ -43,21 +43,21 @@ class Configuration(IConfiguration):
     def get_section(self, key: str) -> IConfigurationSection:
         """Get a configuration section."""
         keys = key.split(":")
-        current = self._data
+        current: Any = self._data
 
         for k in keys:
-            if isinstance(current, dict):
-                # Case-insensitive key lookup
-                matching_key = None
-                for dict_key in current.keys():
-                    if dict_key.lower() == k.lower():
-                        matching_key = dict_key
-                        break
+            if not isinstance(current, dict):
+                return ConfigurationSection({}, key)
 
-                if matching_key:
-                    current = current[matching_key]
-                else:
-                    return ConfigurationSection({}, key)
+            # Case-insensitive key lookup
+            matching_key = None
+            for dict_key in current.keys():
+                if dict_key.lower() == k.lower():
+                    matching_key = dict_key
+                    break
+
+            if matching_key:
+                current = current[matching_key]
             else:
                 return ConfigurationSection({}, key)
 

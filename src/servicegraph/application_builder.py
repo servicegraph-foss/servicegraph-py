@@ -64,15 +64,21 @@ class ApplicationBuilder:
         self._middleware.append(middleware_factory)
         return self
 
-    def get_middleware_pipeline(self):
+    def get_middleware_pipeline(self) -> Any:
         """Get the configured middleware pipeline."""
-        from middleware.middleware_pipeline import MiddlewarePipeline
+        try:
+            from middleware.middleware_pipeline import (  # type: ignore[import-not-found]
+                MiddlewarePipeline,
+            )
 
-        pipeline = MiddlewarePipeline()
-        for middleware_factory in self._middleware:
-            # Pass the factory directly - it should be callable and return middleware instances
-            pipeline.use(middleware_factory)
-        return pipeline
+            pipeline = MiddlewarePipeline()
+            for middleware_factory in self._middleware:
+                # Pass the factory directly - it should be callable and return middleware instances
+                pipeline.use(middleware_factory)
+            return pipeline
+        except ImportError:
+            # Middleware pipeline is optional
+            return None
 
     def build(self) -> ServiceProvider:
         """Mimics builder.Build()"""
