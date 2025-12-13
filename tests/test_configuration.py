@@ -14,6 +14,7 @@ from servicegraph import ApplicationBuilder, IConfiguration, ConfigurationBuilde
 
 class AppSettings:
     """Test settings class for bind() tests."""
+
     def __init__(self):
         self.host = None
         self.port = None
@@ -23,6 +24,7 @@ class AppSettings:
 @dataclass
 class DatabaseSettings:
     """Test dataclass for typed configuration."""
+
     host: str
     port: int
     database_name: str
@@ -65,9 +67,10 @@ class TestConfigurationSystem:
 
         def setup_config(config_builder):
             import os
-            os.environ['TEST_KEY'] = 'test_value'
-            os.environ['NESTED__KEY'] = 'nested_value'
-            config_builder.add_environment_variables('')
+
+            os.environ["TEST_KEY"] = "test_value"
+            os.environ["NESTED__KEY"] = "nested_value"
+            config_builder.add_environment_variables("")
             return config_builder
 
         builder.configure_configuration(setup_config)
@@ -84,15 +87,15 @@ class TestConfigurationSystem:
             "api": {
                 "base_url": "https://api.example.com",
                 "timeout": 30,
-                "retry_count": 3
+                "retry_count": 3,
             },
             "logging": {
                 "level": "INFO",
-                "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-            }
+                "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+            },
         }
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             json.dump(config_data, f)
             temp_file = f.name
 
@@ -121,7 +124,7 @@ class TestConfigurationSystem:
         test_env_vars = {
             "TEST_API_URL": "https://test.example.com",
             "TEST_DATABASE_NAME": "test_db",
-            "TEST_FEATURE_ENABLED": "true"
+            "TEST_FEATURE_ENABLED": "true",
         }
 
         # Store original values to restore later
@@ -158,29 +161,29 @@ class TestConfigurationSystem:
         """Test configuration source precedence."""
         # Create base configuration file
         base_config = {
-            "database": {
-                "host": "localhost",
-                "port": 5432,
-                "name": "base_db"
-            },
-            "feature_flag": False
+            "database": {"host": "localhost", "port": 5432, "name": "base_db"},
+            "feature_flag": False,
         }
 
         # Create environment-specific configuration file
         env_config = {
             "database": {
                 "host": "prod-server",
-                "name": "prod_db"
+                "name": "prod_db",
                 # port should be inherited from base
             },
-            "feature_flag": True
+            "feature_flag": True,
         }
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as base_file:
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".json", delete=False
+        ) as base_file:
             json.dump(base_config, base_file)
             base_filename = base_file.name
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as env_file:
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".json", delete=False
+        ) as env_file:
             json.dump(env_config, env_file)
             env_filename = env_file.name
 
@@ -230,8 +233,9 @@ class TestConfigurationSystem:
 
             # Add some actual configuration via environment
             import os
-            os.environ['TEST'] = 'value'
-            config_builder.add_environment_variables('')
+
+            os.environ["TEST"] = "value"
+            config_builder.add_environment_variables("")
             return config_builder
 
         builder.configure_configuration(setup_config)
@@ -259,11 +263,12 @@ class TestConfigurationSystem:
 
         def setup_config(config_builder):
             import os
-            os.environ['DATABASE__CONNECTION_STRING'] = 'server=localhost;database=test'
-            os.environ['DATABASE__TIMEOUT'] = '30'
-            os.environ['DATABASE__POOL_SIZE'] = '10'
-            os.environ['LOGGING__LEVEL'] = 'DEBUG'
-            config_builder.add_environment_variables('')
+
+            os.environ["DATABASE__CONNECTION_STRING"] = "server=localhost;database=test"
+            os.environ["DATABASE__TIMEOUT"] = "30"
+            os.environ["DATABASE__POOL_SIZE"] = "10"
+            os.environ["LOGGING__LEVEL"] = "DEBUG"
+            config_builder.add_environment_variables("")
             return config_builder
 
         builder.configure_configuration(setup_config)
@@ -273,7 +278,10 @@ class TestConfigurationSystem:
 
         # Get section
         db_section = config.get_section("database")
-        assert db_section.get_value("connection_string") == "server=localhost;database=test"
+        assert (
+            db_section.get_value("connection_string")
+            == "server=localhost;database=test"
+        )
         assert db_section.get_value("timeout") == "30"  # String from env var
 
         # Get nested section
@@ -286,10 +294,11 @@ class TestConfigurationSystem:
 
         def setup_config(config_builder):
             import os
-            os.environ['APP__HOST'] = 'localhost'
-            os.environ['APP__PORT'] = '8080'
-            os.environ['APP__DEBUG'] = 'true'
-            config_builder.add_environment_variables('')
+
+            os.environ["APP__HOST"] = "localhost"
+            os.environ["APP__PORT"] = "8080"
+            os.environ["APP__DEBUG"] = "true"
+            config_builder.add_environment_variables("")
             return config_builder
 
         builder.configure_configuration(setup_config)
@@ -311,12 +320,13 @@ class TestConfigurationSystem:
             "database": {
                 "host": "db-server",
                 "port": 5432,
-                "database_name": "production"
+                "database_name": "production",
             }
         }
 
         # Create configuration directly for this test (using module-level dataclass)
         from servicegraph.configuration import Configuration
+
         config = Configuration(config_data)
 
         # Get typed object from configuration
@@ -332,8 +342,9 @@ class TestConfigurationSystem:
 
         def setup_config(config_builder):
             import os
-            os.environ['INITIAL'] = 'value1'
-            config_builder.add_environment_variables('')
+
+            os.environ["INITIAL"] = "value1"
+            config_builder.add_environment_variables("")
             return config_builder
 
         builder.configure_configuration(setup_config)
@@ -355,9 +366,10 @@ class TestConfigurationSystem:
 
         def setup_config(config_builder):
             import os
-            os.environ['KEY_TO_REMOVE'] = 'will_be_removed'
-            os.environ['KEY_TO_KEEP'] = 'will_stay'
-            config_builder.add_environment_variables('')
+
+            os.environ["KEY_TO_REMOVE"] = "will_be_removed"
+            os.environ["KEY_TO_KEEP"] = "will_stay"
+            config_builder.add_environment_variables("")
             return config_builder
 
         builder.configure_configuration(setup_config)
@@ -385,9 +397,10 @@ class TestConfigurationSystem:
 
         def setup_config(config_builder):
             import os
-            os.environ['KEY1'] = 'value1'
-            os.environ['KEY2'] = 'value2'
-            config_builder.add_environment_variables('')
+
+            os.environ["KEY1"] = "value1"
+            os.environ["KEY2"] = "value2"
+            config_builder.add_environment_variables("")
             return config_builder
 
         builder.configure_configuration(setup_config)
@@ -408,50 +421,50 @@ class TestConfigurationSystem:
 
 class TestConfigurationBuilder:
     """Test ConfigurationBuilder functionality."""
-    
+
     def test_fluent_configuration_building(self):
         """Test fluent interface for configuration building."""
         import os
         import tempfile
         import json
-        
+
         # Create temp JSON file for testing fluent interface
         config_data = {"base": "value"}
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json',
-                                         delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             json.dump(config_data, f)
             temp_file = f.name
-        
+
         try:
             # Set up environment override
-            os.environ['OVERRIDE'] = 'new_value'
-            
+            os.environ["OVERRIDE"] = "new_value"
+
             config_builder = ConfigurationBuilder()
-            config = (config_builder
-                      .add_json_file(temp_file)
-                      .add_environment_variables('')
-                      .build())
-            
+            config = (
+                config_builder.add_json_file(temp_file)
+                .add_environment_variables("")
+                .build()
+            )
+
             assert config.get_value("base") == "value"
             assert config.get_value("OVERRIDE") == "new_value"
         finally:
             os.unlink(temp_file)
-            os.environ.pop('OVERRIDE', None)
-    
+            os.environ.pop("OVERRIDE", None)
+
     def test_configuration_validation(self):
         """Test configuration validation and error handling."""
         config_builder = ConfigurationBuilder()
-        
+
         # Test invalid JSON file
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             f.write("invalid json content {")
             invalid_json_file = f.name
-        
+
         try:
             # Should raise JSON parsing error when adding invalid file
             with pytest.raises(ValueError):
                 config_builder.add_json_file(invalid_json_file, optional=False)
-                
+
         finally:
             os.unlink(invalid_json_file)
 

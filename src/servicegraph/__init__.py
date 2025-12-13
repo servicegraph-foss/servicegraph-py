@@ -19,7 +19,7 @@ from .service_locator import get_service, get_named_service
 # Configuration management
 from .i_configuration import IConfiguration
 from .configuration import Configuration
-from .i_configuration_builder import IConfigurationBuilder  
+from .i_configuration_builder import IConfigurationBuilder
 from .configuration_builder import ConfigurationBuilder
 from .i_configuration_section import IConfigurationSection
 from .configuration_section import ConfigurationSection
@@ -36,23 +36,19 @@ from .dependency_injection_utils import *
 __all__ = [
     # Version info
     "__version__",
-    
     # Core DI classes
     "ServiceCollection",
     "ServiceProvider",
     "ServiceLifetime",
     "get_service",
     "get_named_service",
-    
     # Configuration classes
     "Configuration",
     "ConfigurationBuilder",
     "ConfigurationSection",
-    
     # Application setup
     "ApplicationBuilder",
     "RequestContext",
-    
     # Abstract interfaces (for type hinting)
     "IConfiguration",
     "IConfigurationBuilder",
@@ -67,6 +63,7 @@ __maintainer_email__ = "servicegraph.contact@gmail.com"
 
 # Minimum Python version requirement
 import sys
+
 if sys.version_info < (3, 8):
     raise ImportError(
         "servicegraph requires Python 3.8 or later. "

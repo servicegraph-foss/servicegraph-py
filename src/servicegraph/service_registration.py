@@ -11,20 +11,20 @@ class ServiceRegistration:
         service_type: Type,
         implementation: Type,
         lifetime: ServiceLifetime,
-        factory: Callable[['ServiceProvider'], Any],
-        name: Optional[str] = None
+        factory: Callable[["ServiceProvider"], Any],
+        name: Optional[str] = None,
     ):
         self.service_type = service_type
         self.implementation = implementation
         self.lifetime = lifetime
         self.factory = factory
         self.name = name  # None for unnamed services, string for named services
-        
+
     @property
     def is_named(self) -> bool:
         """Returns True if this is a named service registration"""
         return self.name is not None
-    
+
     @property
     def registration_key(self) -> str:
         """Generate a unique key for this registration"""
@@ -32,10 +32,10 @@ class ServiceRegistration:
         if self.is_named:
             return f"{service_key}#{self.name}"
         return service_key
-    
+
     def _get_service_key(self, service_type: Type) -> str:
         """Generate a unique key for the service type, handling generic types like Callable"""
-        if hasattr(service_type, '__name__'):
+        if hasattr(service_type, "__name__"):
             return service_type.__name__
         else:
             # Handle generic types like Callable[[], SomeClass]

@@ -32,7 +32,7 @@ class SingletonDependsOnScoped:
         self.scoped = scoped
 
 
-# Invalid: Transient depending on Scoped  
+# Invalid: Transient depending on Scoped
 class TransientDependsOnScoped:
     def __init__(self, scoped: ScopedService):
         self.scoped = scoped
@@ -59,42 +59,48 @@ class TransientDependsOnSingleton:
 def test_singleton_cannot_depend_on_transient():
     """Singleton services cannot depend on transient services."""
     builder = ApplicationBuilder()
-    
+
     builder.services.add_transient(TransientService)
-    
-    with pytest.raises(ValueError, match="Singleton services cannot depend on transient services"):
+
+    with pytest.raises(
+        ValueError, match="Singleton services cannot depend on transient services"
+    ):
         builder.services.add_singleton(SingletonDependsOnTransient)
 
 
 def test_singleton_cannot_depend_on_scoped():
     """Singleton services cannot depend on scoped services."""
     builder = ApplicationBuilder()
-    
+
     builder.services.add_scoped(ScopedService)
-    
-    with pytest.raises(ValueError, match="Singleton services cannot depend on scoped services"):
+
+    with pytest.raises(
+        ValueError, match="Singleton services cannot depend on scoped services"
+    ):
         builder.services.add_singleton(SingletonDependsOnScoped)
 
 
 def test_transient_cannot_depend_on_scoped():
     """Transient services cannot depend on scoped services."""
     builder = ApplicationBuilder()
-    
+
     builder.services.add_scoped(ScopedService)
-    
-    with pytest.raises(ValueError, match="Transient services cannot depend on scoped services"):
+
+    with pytest.raises(
+        ValueError, match="Transient services cannot depend on scoped services"
+    ):
         builder.services.add_transient(TransientDependsOnScoped)
 
 
 def test_scoped_can_depend_on_transient():
     """Scoped services CAN depend on transient services (valid)."""
     builder = ApplicationBuilder()
-    
+
     builder.services.add_transient(TransientService)
     builder.services.add_scoped(ScopedDependsOnTransient)  # Should not raise
-    
+
     provider = builder.build()
-    
+
     # Should work fine when used with 'with' statement
     with provider.get_service(ScopedDependsOnTransient) as service:
         assert service.transient.get_value() == "transient"
@@ -103,12 +109,12 @@ def test_scoped_can_depend_on_transient():
 def test_scoped_can_depend_on_singleton():
     """Scoped services CAN depend on singleton services (valid)."""
     builder = ApplicationBuilder()
-    
+
     builder.services.add_singleton(SingletonService)
     builder.services.add_scoped(ScopedDependsOnSingleton)  # Should not raise
-    
+
     provider = builder.build()
-    
+
     # Should work fine
     with provider.get_service(ScopedDependsOnSingleton) as service:
         assert service.singleton.get_value() == "singleton"
@@ -117,12 +123,12 @@ def test_scoped_can_depend_on_singleton():
 def test_transient_can_depend_on_singleton():
     """Transient services CAN depend on singleton services (valid)."""
     builder = ApplicationBuilder()
-    
+
     builder.services.add_singleton(SingletonService)
     builder.services.add_transient(TransientDependsOnSingleton)  # Should not raise
-    
+
     provider = builder.build()
-    
+
     # Should work fine
     service = provider.get_service(TransientDependsOnSingleton)
     assert service.singleton.get_value() == "singleton"
