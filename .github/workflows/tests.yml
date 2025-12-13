@@ -29,13 +29,14 @@ jobs:
     
     - name: Run tests
       run: |
-        pytest --cov=servicegraph --cov-report=xml --cov-report=term
+        pytest --cov=servicegraph --cov-report=xml --cov-report=html --cov-report=term
     
-    - name: Upload coverage
-      uses: codecov/codecov-action@v3
+    - name: Upload coverage report
+      if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.11'
+      uses: actions/upload-artifact@v3
       with:
-        file: ./coverage.xml
-        fail_ci_if_error: true
+        name: coverage-report
+        path: htmlcov/
 
   lint:
     runs-on: ubuntu-latest
