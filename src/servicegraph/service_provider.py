@@ -23,7 +23,9 @@ class CircularDependencyException(Exception):
 class ScopedServiceContextManager:
     """Context manager wrapper for scoped services that enforces proper usage."""
 
-    def __init__(self, service_instance: Any, session_id: str, provider: "ServiceProvider") -> None:
+    def __init__(
+        self, service_instance: Any, session_id: str, provider: "ServiceProvider"
+    ) -> None:
         self._service_instance = service_instance
         self._session_id = session_id
         self._provider = provider
@@ -100,7 +102,9 @@ class ServiceProvider:
     _instance = None
     _lock = RLock()
 
-    def __new__(cls, service_collection: Optional[ServiceCollection] = None) -> "ServiceProvider":
+    def __new__(
+        cls, service_collection: Optional[ServiceCollection] = None
+    ) -> "ServiceProvider":
         if cls._instance is None:
             with cls._lock:
                 if cls._instance is None:
@@ -423,7 +427,9 @@ class ServiceProvider:
         self.clear_singleton_instances()
         self.clear_all_sessions()
 
-    def remove_service(self, service_type: type[Any], name: Optional[str] = None) -> bool:
+    def remove_service(
+        self, service_type: type[Any], name: Optional[str] = None
+    ) -> bool:
         """
         Remove a service registration and its cached instance.
 

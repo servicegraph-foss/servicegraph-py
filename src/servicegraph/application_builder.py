@@ -50,12 +50,16 @@ class ApplicationBuilder:
         """Get the current configuration."""
         return self._configuration
 
-    def configure_services(self, callback: Callable[["ApplicationBuilder"], None]) -> "ApplicationBuilder":
+    def configure_services(
+        self, callback: Callable[["ApplicationBuilder"], None]
+    ) -> "ApplicationBuilder":
         """Mimics builder.ConfigureServices()"""
         callback(self)
         return self
 
-    def use_middleware(self, middleware_factory: Callable[..., Any]) -> "ApplicationBuilder":
+    def use_middleware(
+        self, middleware_factory: Callable[..., Any]
+    ) -> "ApplicationBuilder":
         """Mimics app.UseMiddleware<T>()"""
         self._middleware.append(middleware_factory)
         return self

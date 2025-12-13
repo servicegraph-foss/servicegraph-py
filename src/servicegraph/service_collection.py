@@ -20,7 +20,10 @@ class ServiceCollection:
         self._registrations: Dict[str, ServiceRegistration] = {}
 
     def _validate_implementation_type(
-        self, service_type: type[Any], implementation: type[Any], method_name: str = "add"
+        self,
+        service_type: type[Any],
+        implementation: type[Any],
+        method_name: str = "add",
     ) -> None:
         """
         Validate that the implementation type is compatible with the service type.
@@ -116,7 +119,9 @@ class ServiceCollection:
             service_type, implementation, lifetime=ServiceLifetime.SINGLETON
         )
 
-    def add_scoped(self, service_type: type[Any], implementation: Optional[type[T]] = None) -> "ServiceCollection":
+    def add_scoped(
+        self, service_type: type[Any], implementation: Optional[type[T]] = None
+    ) -> "ServiceCollection":
         """
         Add a scoped service.
 
@@ -190,7 +195,9 @@ class ServiceCollection:
         """
         return self.add(service_type, factory=factory, lifetime=lifetime, name=name)
 
-    def add_instance(self, service_type: type[Any], instance: Any) -> "ServiceCollection":
+    def add_instance(
+        self, service_type: type[Any], instance: Any
+    ) -> "ServiceCollection":
         """
         Add a pre-configured instance as a singleton service.
 
