@@ -1,11 +1,11 @@
-# Contributing to dipy
+# Contributing to servicegraph
 
 ## Getting Started
 
 ### Development Setup
 ```bash
-git clone https://github.com/your-org/dipy.git
-cd dipy
+git clone https://github.com/your-org/servicegraph.git
+cd servicegraph
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -e ".[dev]"
@@ -16,7 +16,7 @@ pre-commit install
 ```bash
 pytest                    # Run all tests
 pytest -v                # Verbose output
-pytest --cov=dipy        # With coverage report
+pytest --cov=servicegraph        # With coverage report
 pytest -m "not slow"     # Skip slow tests
 ```
 

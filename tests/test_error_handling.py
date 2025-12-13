@@ -3,7 +3,7 @@
 import pytest
 from abc import ABC, abstractmethod
 from typing import Generic, TypeVar, List
-from dipy import ApplicationBuilder, ServiceProvider
+from servicegraph import ApplicationBuilder, ServiceProvider
 
 # ========================
 # Test Fixtures
@@ -17,7 +17,7 @@ def reset_service_provider():
     Note: ServiceProvider is a singleton by design - only one exists
     per runtime. We clear its state rather than trying to recreate it.
     """
-    from dipy.service_provider import ServiceProvider
+    from servicegraph.service_provider import ServiceProvider
 
     # Clear before test
     if ServiceProvider._instance is not None:

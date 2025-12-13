@@ -4,7 +4,7 @@ import pytest
 import time
 import threading
 from unittest.mock import patch
-from dipy import ApplicationBuilder, ServiceLifetime, ServiceProvider
+from servicegraph import ApplicationBuilder, ServiceLifetime, ServiceProvider
 
 # ========================
 # Test Fixtures
@@ -18,7 +18,7 @@ def reset_service_provider():
     Note: ServiceProvider is a singleton by design - only one exists
     per runtime. We clear its state rather than trying to recreate it.
     """
-    from dipy.service_provider import ServiceProvider
+    from servicegraph.service_provider import ServiceProvider
 
     # Clear before test
     if ServiceProvider._instance is not None:
@@ -173,7 +173,7 @@ class TestServiceLifetimeManagement:
         original_now = datetime.now(timezone.utc)
         future_time = original_now + timedelta(minutes=30, seconds=1)
         
-        with patch('dipy.service_provider.datetime') as mock_datetime:
+        with patch('servicegraph.service_provider.datetime') as mock_datetime:
             # Mock now to return future time
             mock_datetime.now.return_value = future_time
             # Keep timedelta and timezone working normally

@@ -1,12 +1,12 @@
 """
-dipy - A lightweight dependency injection framework for Python
+servicegraph - A lightweight dependency injection framework for Python
 
 This package provides a simple yet powerful dependency injection container
 with support for service lifetimes, configuration management, and type safety.
 """
 
 __version__ = "0.1.0"
-__author__ = "dipy Contributors"
+__author__ = "ServiceGraph Contributors"
 __license__ = "See LICENSE file"
 
 # Core dependency injection components
@@ -61,15 +61,15 @@ __all__ = [
 
 # Package metadata
 __description__ = "A lightweight dependency injection framework for Python"
-__url__ = "https://github.com/your-org/dipy"  # Update with actual URL
-__maintainer__ = "dipy Contributors"
-__maintainer_email__ = "maintainers@dipy.dev"  # Update with actual email
+__url__ = "https://github.com/servicegraph-foss/servicegraph-py"
+__maintainer__ = "servicegraph Contributors"
+__maintainer_email__ = "servicegraph.contact@gmail.com"
 
 # Minimum Python version requirement
 import sys
 if sys.version_info < (3, 8):
     raise ImportError(
-        "dipy requires Python 3.8 or later. "
+        "servicegraph requires Python 3.8 or later. "
         f"You are using Python "
         f"{sys.version_info.major}.{sys.version_info.minor}."
     )

@@ -1,6 +1,6 @@
 """Debug script to test scoped service behavior."""
 
-from dipy import ApplicationBuilder
+from servicegraph import ApplicationBuilder
 from abc import ABC, abstractmethod
 
 

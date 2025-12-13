@@ -5,7 +5,7 @@ import json
 import os
 import tempfile
 from dataclasses import dataclass
-from dipy import ApplicationBuilder, IConfiguration, ConfigurationBuilder
+from servicegraph import ApplicationBuilder, IConfiguration, ConfigurationBuilder
 
 # ========================
 # Module-level types for testing
@@ -40,7 +40,7 @@ def reset_service_provider():
     Note: ServiceProvider is a singleton by design - only one exists
     per runtime. We clear its state rather than trying to recreate it.
     """
-    from dipy.service_provider import ServiceProvider
+    from servicegraph.service_provider import ServiceProvider
 
     # Clear before test
     if ServiceProvider._instance is not None:
@@ -316,7 +316,7 @@ class TestConfigurationSystem:
         }
 
         # Create configuration directly for this test (using module-level dataclass)
-        from dipy.configuration import Configuration
+        from servicegraph.configuration import Configuration
         config = Configuration(config_data)
 
         # Get typed object from configuration

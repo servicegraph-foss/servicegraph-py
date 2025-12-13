@@ -1,12 +1,12 @@
-"""Integration tests for complete dipy workflows."""
+"""Integration tests for complete servicegraph workflows."""
 
 import pytest
 import json
 import tempfile
 import os
 from abc import ABC, abstractmethod
-from dipy import ApplicationBuilder, IConfiguration
-from dipy.service_lifetime import ServiceLifetime
+from servicegraph import ApplicationBuilder, IConfiguration
+from servicegraph.service_lifetime import ServiceLifetime
 
 # ========================
 # Test Fixtures
@@ -20,7 +20,7 @@ def reset_service_provider():
     Note: ServiceProvider is a singleton by design - only one exists
     per runtime. We clear its state rather than trying to recreate it.
     """
-    from dipy.service_provider import ServiceProvider
+    from servicegraph.service_provider import ServiceProvider
 
     # Clear before test
     if ServiceProvider._instance is not None:

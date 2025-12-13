@@ -1,23 +1,23 @@
-# dipy - Lightweight Dependency Injection for Python
+# servicegraph - Lightweight Dependency Injection for Python
 
 A professional-grade dependency injection framework designed for modern Python applications, with first-class support for Azure Functions and extensible middleware capabilities.
 
-## Why dipy?
+## Why servicegraph?
 
 Dependency injection transforms tightly-coupled code into maintainable, testable architectures. While Python's dynamic nature makes DI less critical than in statically-typed languages, complex applications—especially those integrating multiple services, configurations, and external APIs—benefit significantly from structured dependency management.
 
-**dipy** provides this structure without the overhead. Designed to excel in both stateless serverless environments and traditional long-running applications, it offers the power of enterprise DI patterns with Python's characteristic simplicity. Its robust resource management and thread safety make it suitable for any Python application architecture.
+**servicegraph** provides this structure without the overhead. Designed to excel in both stateless serverless environments and traditional long-running applications, it offers the power of enterprise DI patterns with Python's characteristic simplicity. Its robust resource management and thread safety make it suitable for any Python application architecture.
 
 ## Installation
 
 ```bash
-pip install dipy
+pip install servicegraph
 ```
 
 ## Quick Start
 
 ```python
-from dipy import ApplicationBuilder, ServiceLifetime
+from servicegraph import ApplicationBuilder, ServiceLifetime
 from abc import ABC, abstractmethod
 
 # Define your service interfaces using ABC
@@ -46,7 +46,7 @@ notification_service.send("Hello, World!")
 
 ## Comparison with Other Frameworks
 
-| Feature | dipy | dependency-injector | injector | FastAPI Depends |
+| Feature | servicegraph | dependency-injector | injector | FastAPI Depends |
 |---------|------|---------------------|----------|------------------|
 | **Learning Curve** | Low (if from .NET) | High | Medium | Low (if using FastAPI) |
 | **External Dependencies** | 0 | 6+ | 0 | Many (FastAPI ecosystem) |
@@ -60,7 +60,7 @@ notification_service.send("Hello, World!")
 | **Cold Start Impact** | Minimal | Moderate | Minimal | High |
 | **.NET-like API** | ✅ Yes | ❌ No | ❌ No | ❌ No |
 
-## When to Use dipy
+## When to Use servicegraph
 
 ### ✅ Great Fit
 - **Migrating from .NET to Python** - familiar patterns reduce friction
@@ -78,14 +78,14 @@ notification_service.send("Hello, World!")
 
 ### ❌ Not Ideal For
 - **Python 2.7 or <3.8** - requires modern type hints
-- **Projects avoiding type hints** - core to dipy's design
-- **Need for decorators on every class** - dipy is registration-based, not decorator-based
+- **Projects avoiding type hints** - core to servicegraph's design
+- **Need for decorators on every class** - servicegraph is registration-based, not decorator-based
 
 ## Core Concepts
 
 ### Service Discovery and Resolution
 
-dipy uses a recursive resolution mechanism that automatically discovers and instantiates dependencies. When you request a service, the container:
+servicegraph uses a recursive resolution mechanism that automatically discovers and instantiates dependencies. When you request a service, the container:
 
 1. **Locates the registration** - Finds the concrete type mapped to your interface
 2. **Analyzes dependencies** - Inspects the constructor for required parameters
@@ -95,11 +95,11 @@ dipy uses a recursive resolution mechanism that automatically discovers and inst
 
 This eliminates the manual wiring typically required in Python applications while maintaining full control over object creation.
 
-> **Note on Constructor Analysis**: dipy gracefully handles classes without explicit constructors (those that inherit Python's default `object.__init__`). The container automatically detects when a class has no custom constructor and creates simple factory functions that instantiate the class directly, without attempting dependency injection. This means you can register and resolve both complex services with dependencies and simple data classes or utility classes seamlessly.
+> **Note on Constructor Analysis**: servicegraph gracefully handles classes without explicit constructors (those that inherit Python's default `object.__init__`). The container automatically detects when a class has no custom constructor and creates simple factory functions that instantiate the class directly, without attempting dependency injection. This means you can register and resolve both complex services with dependencies and simple data classes or utility classes seamlessly.
 
 ### Interface Design Requirements
 
-**dipy enforces proper interface design using Python's Abstract Base Classes (ABC):**
+**servicegraph enforces proper interface design using Python's Abstract Base Classes (ABC):**
 
 ```python
 from abc import ABC, abstractmethod
@@ -140,10 +140,10 @@ class IPaymentProcessor:  # Missing ABC inheritance
 
 ### Configuration Integration
 
-dipy includes a robust configuration system that seamlessly integrates with dependency injection:
+servicegraph includes a robust configuration system that seamlessly integrates with dependency injection:
 
 ```python
-from dipy import ApplicationBuilder, IConfiguration
+from servicegraph import ApplicationBuilder, IConfiguration
 from abc import ABC, abstractmethod
 
 def configure_app():
@@ -252,7 +252,7 @@ email_service = provider.get_service(EmailService)  # ✅ No context manager nee
 **Use when**: You need per-request state with guaranteed cleanup (database connections, file handles, etc.).
 **Session ID**: Optional parameter that creates a session for consistent transient resolution within the scoped service's dependencies.
 
-**Graceful Dependency Injection**: dipy intelligently handles scoped services differently based on context:
+**Graceful Dependency Injection**: servicegraph intelligently handles scoped services differently based on context:
 - **Direct resolution** (`provider.get_service(IScopedService)`): Returns a context manager wrapper that enforces the `with` pattern
 - **Dependency injection** (constructor parameter): Automatically unwraps to the raw instance—no context manager required
 - **Automatic session management**: When used as dependencies, scoped services automatically inherit the session context from their parent scope
@@ -287,12 +287,12 @@ with provider.get_service(IDatabaseConnection) as db:
 
 **Key Point**: The `session_id` parameter is **optional**. Use it only when you need consistent transient instances across multiple scoped service resolutions within the same logical operation (like a web request or function invocation).
 
-**Behind the scenes**: dipy wraps scoped services in a `ScopedServiceContextManager` that enforces proper usage for direct resolution while gracefully unwrapping for dependency injection.
+**Behind the scenes**: servicegraph wraps scoped services in a `ScopedServiceContextManager` that enforces proper usage for direct resolution while gracefully unwrapping for dependency injection.
 **Disposal behavior**: The context manager automatically calls `dispose()` or `close()` methods if your service implements them, but scoped services don't need to implement these methods—the `with` pattern works with any service. All scoped dependencies created during a scope are tracked and disposed together.
 
 ### Lifecycle Dependency Rules
 
-**dipy enforces strict lifetime compatibility rules** to prevent subtle bugs where longer-lived services depend on shorter-lived ones. These validations occur at registration time, catching configuration errors early.
+**servicegraph enforces strict lifetime compatibility rules** to prevent subtle bugs where longer-lived services depend on shorter-lived ones. These validations occur at registration time, catching configuration errors early.
 
 **The Sliding Scale Rule**:
 ```
@@ -359,7 +359,7 @@ Services can only depend on services with equal or longer lifetimes. Dependencie
    ```
 
 **Error Messages**:
-When you violate these rules, dipy provides clear, actionable error messages:
+When you violate these rules, servicegraph provides clear, actionable error messages:
 ```
 ValueError: Invalid dependency in SingletonService: Singleton services cannot depend on 
 transient services.
@@ -406,7 +406,7 @@ service.smtp_host.lower() # ❌ AttributeError: 'NoneType' object has no attribu
 
 **The Design Decision:**
 
-dipy follows the principle that **the DI container should not crash your application**. Instead:
+servicegraph follows the principle that **the DI container should not crash your application**. Instead:
 - The service is created successfully (with `None` for primitive parameters without defaults)
 - Warnings are logged to alert you of the configuration issue
 - The error occurs when **you** try to use the improperly configured service
@@ -557,7 +557,7 @@ push_service = provider.get_named_service("push", INotificationService)
 
 ## Design Philosophy
 
-dipy was born from a specific need: **bringing .NET's familiar DI patterns to Python with first-class support for modern deployment architectures**.
+servicegraph was born from a specific need: **bringing .NET's familiar DI patterns to Python with first-class support for modern deployment architectures**.
 
 ### Core Principles
 
@@ -567,12 +567,12 @@ dipy was born from a specific need: **bringing .NET's familiar DI patterns to Py
    services.AddTransient<IMyService, MyService>();
    ```
    ```python
-   # Python dipy
+   # Python servicegraph
    services.add(MyService, IMyService, lifetime=ServiceLifetime.TRANSIENT)
    ```
 
 2. **No Hidden Dependencies**
-   - Every import is from `dipy` or Python stdlib
+   - Every import is from `servicegraph` or Python stdlib
    - No surprise package installations
    - Predictable deployment sizes
 
@@ -595,9 +595,9 @@ dipy was born from a specific need: **bringing .NET's familiar DI patterns to Py
 
 **Problem**: Serverless platforms (Azure Functions, AWS Lambda, etc.) can have concurrent executions in the same process. Traditional singleton patterns can cause data bleed between invocations.
 
-**dipy Solution**:
+**servicegraph Solution**:
 ```python
-from dipy import ApplicationBuilder, ServiceLifetime
+from servicegraph import ApplicationBuilder, ServiceLifetime
 import azure.functions as func  # or AWS Lambda handler, etc.
 
 # Create application once at startup
@@ -648,7 +648,7 @@ The recommended pattern follows .NET's familiar startup conventions: centralize 
 
 ```python
 from typing import Callable
-from dipy import ApplicationBuilder, ServiceProvider, IConfiguration
+from servicegraph import ApplicationBuilder, ServiceProvider, IConfiguration
 from interfaces.i_email_service import IEmailService
 from interfaces.i_database import IDatabaseConnection
 from interfaces.i_api_client import IApiClient
@@ -901,11 +901,11 @@ def test_document_processing():
 
 ### Azure Functions
 
-dipy provides first-class support for Azure Functions v2 (isolated worker model):
+servicegraph provides first-class support for Azure Functions v2 (isolated worker model):
 
 ```python
 import azure.functions as func
-from dipy import ApplicationBuilder
+from servicegraph import ApplicationBuilder
 
 def create_app():
     builder = ApplicationBuilder()
@@ -928,12 +928,12 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
 
 ### Middleware Support
 
-dipy includes an extensible middleware pipeline for cross-cutting concerns like logging, authentication, and validation.
+servicegraph includes an extensible middleware pipeline for cross-cutting concerns like logging, authentication, and validation.
 
 **Current Implementation: Azure Functions**
 
 ```python
-from dipy.middleware import MiddlewarePipeline
+from servicegraph.middleware import MiddlewarePipeline
 import azure.functions as func
 
 def configure_middleware(builder: ApplicationBuilder):
@@ -1047,7 +1047,7 @@ def __init__(self, api_config: ApiConfig):
 
 ### Memory Management Philosophy
 
-dipy provides **intelligent memory management** designed for both stateless and long-running environments. This design reflects its versatility across different runtime platforms.
+servicegraph provides **intelligent memory management** designed for both stateless and long-running environments. This design reflects its versatility across different runtime platforms.
 
 **What this means for you**:
 - **Singleton services**: Persist for the application lifetime with automatic cleanup on shutdown—suitable for both stateless environments and long-running applications
@@ -1057,7 +1057,7 @@ dipy provides **intelligent memory management** designed for both stateless and 
 
 ### Runtime Environment Flexibility
 
-dipy was architected for **versatile deployment** across different platforms:
+servicegraph was architected for **versatile deployment** across different platforms:
 
 **Stateless platforms** (optimized):
 - Azure Functions
@@ -1077,7 +1077,7 @@ dipy was architected for **versatile deployment** across different platforms:
 - **Resource efficiency**: Automatic cleanup prevents memory leaks in both short and long-lived processes
 - **Thread safety**: Concurrent access support for multi-threaded applications
 
-### When to Consider Alternatives to dipy
+### When to Consider Alternatives to servicegraph
 
 Consider alternatives if you're building:
 - **Applications requiring complex object lifecycle management** beyond the three standard lifetimes (singleton, transient, scoped)
@@ -1093,19 +1093,19 @@ Consider alternatives if you're building:
 
 ## Honest Trade-offs
 
-### What dipy Doesn't Do (By Design)
+### What servicegraph Doesn't Do (By Design)
 
 - **No configuration files** - Registration is code-only. If you need YAML/JSON config, use `dependency-injector`.
 - **No automatic discovery** - You must explicitly register services. This is intentional for clarity.
 - **No decorators-everywhere** - Unlike `injector`, you don't decorate every class. Registration is centralized.
-- **No web framework integration** - dipy is framework-agnostic. FastAPI's `Depends()` is better if you're all-in on FastAPI.
-- **No validation framework** - dipy injects dependencies; it doesn't validate them. Use Pydantic/etc. separately.
+- **No web framework integration** - servicegraph is framework-agnostic. FastAPI's `Depends()` is better if you're all-in on FastAPI.
+- **No validation framework** - servicegraph injects dependencies; it doesn't validate them. Use Pydantic/etc. separately.
 
 ### What This Means
 
 If you want a batteries-included, enterprise-grade DI container with every feature imaginable, `dependency-injector` is more mature.
 
-If you want the **simplest possible DI system that feels like .NET**, especially for serverless and stateless architectures, dipy is your tool.
+If you want the **simplest possible DI system that feels like .NET**, especially for serverless and stateless architectures, servicegraph is your tool.
 
 > **"Dependency Injection for Python developers who miss .NET, or serverless developers who want sanity."**
 
@@ -1130,7 +1130,7 @@ This project is licensed under the **Apache License 2.0 with Commons Clause** - 
 
 ### Standard Library First
 
-**dipy is committed to minimizing external dependencies** for core functionality. This design principle ensures:
+**servicegraph is committed to minimizing external dependencies** for core functionality. This design principle ensures:
 
 - **Zero dependency conflicts** with your existing projects
 - **Lightweight installation** that doesn't bloat your environment
@@ -1151,7 +1151,7 @@ All contributions will be evaluated against this standard library requirement. P
 - **None** for core DI functionality
 - Testing and Azure Functions integration may use appropriate external libraries
 
-This philosophy keeps dipy lean, predictable, and suitable for any Python environment without imposing additional complexity on your projects.
+This philosophy keeps servicegraph lean, predictable, and suitable for any Python environment without imposing additional complexity on your projects.
 
 ---
 

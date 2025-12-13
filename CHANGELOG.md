@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to the dipy project will be documented in this file.
+All notable changes to the servicegraph project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
@@ -79,7 +79,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Version 0.1.0 - Initial Release
 
-This initial release establishes dipy as a professional-grade dependency injection framework for Python, with particular strength in stateless runtime environments like Azure Functions. The framework provides enterprise-level DI capabilities while maintaining Python's characteristic simplicity and ease of use.
+This initial release establishes servicegraph as a professional-grade dependency injection framework for Python, with particular strength in stateless runtime environments like Azure Functions. The framework provides enterprise-level DI capabilities while maintaining Python's characteristic simplicity and ease of use.
 
 **Key Highlights:**
 - **Production Ready** - Comprehensive error handling and thread safety

@@ -1,7 +1,7 @@
 """Tests for service lifetime dependency validation."""
 
 import pytest
-from dipy import ApplicationBuilder
+from servicegraph import ApplicationBuilder
 
 
 # Test services

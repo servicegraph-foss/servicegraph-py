@@ -5,9 +5,9 @@ import pytest
 import os
 from abc import ABC, abstractmethod
 from unittest.mock import Mock
-from dipy import ApplicationBuilder, IConfiguration
-from dipy.dependency_injection_utils import Named
-from dipy.service_lifetime import ServiceLifetime
+from servicegraph import ApplicationBuilder, IConfiguration
+from servicegraph.dependency_injection_utils import Named
+from servicegraph.service_lifetime import ServiceLifetime
 
 
 # ========================
@@ -21,7 +21,7 @@ def reset_service_provider():
     Note: ServiceProvider is a singleton by design - only one exists
     per runtime. We clear its state rather than trying to recreate it.
     """
-    from dipy.service_provider import ServiceProvider
+    from servicegraph.service_provider import ServiceProvider
     
     # Clear before test
     if ServiceProvider._instance is not None:
@@ -194,7 +194,7 @@ class ColdStartOptimizedServiceAzure:
 # ========================
 
 class TestAzureFunctionsIntegration:
-    """Test dipy integration with Azure Functions."""
+    """Test servicegraph integration with Azure Functions."""
     
     def test_azure_function_service_injection(self):
         """Test service injection in Azure Functions context."""
@@ -368,7 +368,7 @@ class TestAzureFunctionsIntegration:
         assert "Unauthorized" in response.body
     
     def test_azure_function_stateless_optimization(self):
-        """Test dipy optimization for stateless Azure Functions."""
+        """Test servicegraph optimization for stateless Azure Functions."""
         # Create multiple app instances to simulate Azure Functions scaling
         def create_optimized_app():
             builder = ApplicationBuilder()
@@ -404,7 +404,7 @@ class TestAzureFunctionsIntegration:
                     == request_service2.expensive_service.instance_id)
     
     def test_azure_function_cold_start_optimization(self):
-        """Test dipy behavior during Azure Function cold starts."""
+        """Test servicegraph behavior during Azure Function cold starts."""
         # Clear the global initialization counter
         global cold_start_initialization_calls
         cold_start_initialization_calls.clear()
@@ -462,7 +462,7 @@ class TestAzureFunctionConfiguration:
         
         # Also store and set APP environment variables BEFORE building
         app_env_vars = {
-            'APP__NAME': 'dipy-test-function',
+            'APP__NAME': 'servicegraph-test-function',
             'APP__VERSION': '1.0.0'
         }
         for key, value in app_env_vars.items():
@@ -493,7 +493,7 @@ class TestAzureFunctionConfiguration:
             
             # Verify application configuration
             # APP__NAME becomes NAME after prefix removal
-            assert config.get_value("NAME") == "dipy-test-function"
+            assert config.get_value("NAME") == "servicegraph-test-function"
             assert config.get_value("VERSION") == "1.0.0"
             
         finally:

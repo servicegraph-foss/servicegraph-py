@@ -3,16 +3,16 @@ requires = ["hatchling>=1.21.0"]
 build-backend = "hatchling.build"
 
 [project]
-name = "dipy"
+name = "servicegraph"
 version = "0.1.0"
 description = "A lightweight dependency injection framework for Python"
 readme = "README.md"
 license = { file = "LICENSE" }
 authors = [
-    { name = "dipy Contributors" }
+    { name = "ServiceGraph Contributors" }
 ]
 maintainers = [
-    { name = "dipy Contributors" }
+    { name = "ServiceGraph Contributors" }
 ]
 keywords = [
     "dependency-injection",
@@ -71,15 +71,14 @@ docs = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/your-org/dipy"
-Documentation = "https://dipy.readthedocs.io"
-Repository = "https://github.com/your-org/dipy.git"
-"Bug Tracker" = "https://github.com/your-org/dipy/issues"
-Changelog = "https://github.com/your-org/dipy/blob/main/CHANGELOG.md"
-
+Homepage = "https://github.com/servicegraph-foss"
+Documentation = "https://github.com/servicegraph-foss/servicegraph-py/blob/main/README.md"
+Repository = "https://github.com/servicegraph-foss/servicegraph-py.git"
+"Bug Tracker" = "https://github.com/servicegraph-foss/servicegraph-py/issues"
+Changelog = "https://github.com/servicegraph-foss/servicegraph-py/blob/main/CHANGELOG.md"
 # Hatchling configuration
 [tool.hatch.build.targets.wheel]
-packages = ["src/dipy"]
+packages = ["src/servicegraph"]
 
 [tool.hatch.build.targets.sdist]
 include = [
@@ -100,7 +99,7 @@ python_functions = ["test_*"]
 addopts = [
     "--strict-markers",
     "--strict-config",
-    "--cov=dipy",
+    "--cov=servicegraph",
     "--cov-report=term-missing",
     "--cov-report=html",
     "--cov-report=xml",
@@ -136,7 +135,7 @@ extend-exclude = '''
 profile = "black"
 multi_line_output = 3
 line_length = 88
-known_first_party = ["dipy"]
+known_first_party = ["servicegraph"]
 known_third_party = ["pytest"]
 sections = ["FUTURE", "STDLIB", "THIRDPARTY", "FIRSTPARTY", "LOCALFOLDER"]
 
@@ -165,7 +164,7 @@ disallow_incomplete_defs = false
 
 # Coverage configuration
 [tool.coverage.run]
-source = ["src/dipy"]
+source = ["src/servicegraph"]
 branch = true
 omit = [
     "*/tests/*",
@@ -216,4 +215,4 @@ ignore = [
 
 # Hatch version management
 [tool.hatch.version]
-path = "src/dipy/__init__.py"
+path = "src/servicegraph/__init__.py"

@@ -3,13 +3,13 @@
 import pytest
 import logging
 from abc import ABC, abstractmethod
-from dipy import ApplicationBuilder
+from servicegraph import ApplicationBuilder
 
 
 @pytest.fixture(autouse=True)
 def reset_service_provider():
     """Reset the ServiceProvider state before each test."""
-    from dipy.service_provider import ServiceProvider
+    from servicegraph.service_provider import ServiceProvider
 
     if ServiceProvider._instance is not None:
         ServiceProvider._instance.clear_all_instances()

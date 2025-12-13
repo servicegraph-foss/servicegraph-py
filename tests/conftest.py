@@ -1,10 +1,10 @@
-"""Shared test fixtures and configuration for dipy tests."""
+"""Shared test fixtures and configuration for servicegraph tests."""
 
 import pytest
 import tempfile
 import json
 import os
-from dipy import ApplicationBuilder, IConfiguration
+from servicegraph import ApplicationBuilder, IConfiguration
 
 
 @pytest.fixture

@@ -1,7 +1,7 @@
 """
-Test suite for dipy dependency injection framework.
+Test suite for servicegraph dependency injection framework.
 
-This package contains comprehensive tests for all dipy components including:
+This package contains comprehensive tests for all servicegraph components including:
 - Core dependency injection functionality
 - Service lifetime management
 - Configuration system

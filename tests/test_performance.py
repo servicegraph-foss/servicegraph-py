@@ -6,8 +6,8 @@ import threading
 import gc
 import weakref
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from dipy import ApplicationBuilder
-from dipy.service_lifetime import ServiceLifetime
+from servicegraph import ApplicationBuilder
+from servicegraph.service_lifetime import ServiceLifetime
 
 # ========================
 # Test Fixtures
@@ -21,7 +21,7 @@ def reset_service_provider():
     Note: ServiceProvider is a singleton by design - only one exists
     per runtime. We clear its state rather than trying to recreate it.
     """
-    from dipy.service_provider import ServiceProvider
+    from servicegraph.service_provider import ServiceProvider
 
     # Clear before test
     if ServiceProvider._instance is not None:
@@ -124,7 +124,7 @@ class ServiceB:
 
 
 class TestPerformanceCharacteristics:
-    """Test performance characteristics of dipy."""
+    """Test performance characteristics of servicegraph."""
     
     def test_service_resolution_performance(self):
         """Test performance of service resolution."""
@@ -442,7 +442,7 @@ class TestMemoryManagement:
         gc.collect()
         
         # Due to circular reference, services might still be alive
-        # but dipy should handle this gracefully without memory leaks
+        # but servicegraph should handle this gracefully without memory leaks
         # (Implementation detail depends on your circular reference handling)
         
         # Keep references to avoid unused variable warnings

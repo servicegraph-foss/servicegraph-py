@@ -1,7 +1,7 @@
 """Test to verify transient instances persist after scoped service disposal."""
 
 import pytest
-from dipy import ApplicationBuilder
+from servicegraph import ApplicationBuilder
 
 
 class TransientService:
