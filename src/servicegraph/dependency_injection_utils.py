@@ -3,7 +3,7 @@ Utilities for dependency injection with named services using Annotated types.
 """
 
 import inspect
-from typing import Any, Annotated, Dict, get_args, get_origin
+from typing import Annotated, Any, Dict, get_args, get_origin
 
 
 class NamedService:
