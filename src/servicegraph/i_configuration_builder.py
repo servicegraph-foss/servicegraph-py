@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
-from typing import Union, TYPE_CHECKING
 from pathlib import Path
+from typing import TYPE_CHECKING, Union
 
 if TYPE_CHECKING:
     from .i_configuration import IConfiguration

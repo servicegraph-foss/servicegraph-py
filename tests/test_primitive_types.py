@@ -1,8 +1,10 @@
 """Tests for handling primitive types in constructor parameters."""
 
-import pytest
 import logging
 from abc import ABC, abstractmethod
+
+import pytest
+
 from servicegraph import ApplicationBuilder, ServiceProvider
 
 

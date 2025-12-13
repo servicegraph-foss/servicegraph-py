@@ -1,8 +1,9 @@
-from typing import Dict, Any, TypeVar, Type
-from dataclasses import is_dataclass, fields
+from dataclasses import fields, is_dataclass
+from typing import Any, Dict, Type, TypeVar
+
+from .configuration_section import ConfigurationSection
 from .i_configuration import IConfiguration
 from .i_configuration_section import IConfigurationSection
-from .configuration_section import ConfigurationSection
 
 T = TypeVar("T")
 

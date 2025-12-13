@@ -1,11 +1,13 @@
 """Configuration system tests."""
 
-import pytest
 import json
 import os
 import tempfile
 from dataclasses import dataclass
-from servicegraph import ApplicationBuilder, IConfiguration, ConfigurationBuilder
+
+import pytest
+
+from servicegraph import ApplicationBuilder, ConfigurationBuilder, IConfiguration
 
 # ========================
 # Module-level types for testing
@@ -424,9 +426,9 @@ class TestConfigurationBuilder:
 
     def test_fluent_configuration_building(self):
         """Test fluent interface for configuration building."""
+        import json
         import os
         import tempfile
-        import json
 
         # Create temp JSON file for testing fluent interface
         config_data = {"base": "value"}

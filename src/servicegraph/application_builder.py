@@ -1,10 +1,10 @@
 from typing import Callable, Optional
 
-from .service_provider import ServiceProvider
-from .service_collection import ServiceCollection
+from .configuration_builder import ConfigurationBuilder
 from .i_configuration import IConfiguration
 from .i_configuration_builder import IConfigurationBuilder
-from .configuration_builder import ConfigurationBuilder
+from .service_collection import ServiceCollection
+from .service_provider import ServiceProvider
 
 
 class ApplicationBuilder:

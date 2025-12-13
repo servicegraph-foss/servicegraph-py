@@ -6,7 +6,7 @@ service provider.
 
 import threading
 from contextlib import contextmanager
-from typing import Any, Optional, Generator
+from typing import Any, Generator, Optional
 
 _thread_local = threading.local()
 

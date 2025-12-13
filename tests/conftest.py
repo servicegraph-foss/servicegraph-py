@@ -1,9 +1,11 @@
 """Shared test fixtures and configuration for servicegraph tests."""
 
-import pytest
-import tempfile
 import json
 import os
+import tempfile
+
+import pytest
+
 from servicegraph import ApplicationBuilder, IConfiguration
 
 
@@ -32,9 +34,9 @@ def basic_app_builder():
 
     # Add basic configuration using a temporary JSON file
     def setup_config(config_builder):
-        import tempfile
         import json
         import os
+        import tempfile
 
         # Create temporary config file
         config_data = {"test": {"environment": "testing", "debug": True}}

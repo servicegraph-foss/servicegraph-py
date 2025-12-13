@@ -9,28 +9,28 @@ __version__ = "0.1.0"
 __author__ = "ServiceGraph Contributors"
 __license__ = "See LICENSE file"
 
-# Core dependency injection components
-from .service_collection import ServiceCollection
-from .service_provider import ServiceProvider
-from .service_registration import ServiceRegistration
-from .service_lifetime import ServiceLifetime
-from .service_locator import get_service, get_named_service
+# Application and context
+from .application_builder import ApplicationBuilder
+from .configuration import Configuration
+from .configuration_builder import ConfigurationBuilder
+from .configuration_section import ConfigurationSection
+from .dependency_injection_utils import *
 
 # Configuration management
 from .i_configuration import IConfiguration
-from .configuration import Configuration
 from .i_configuration_builder import IConfigurationBuilder
-from .configuration_builder import ConfigurationBuilder
 from .i_configuration_section import IConfigurationSection
-from .configuration_section import ConfigurationSection
-
-# Application and context
-from .application_builder import ApplicationBuilder
 from .request_context import RequestContext
+
+# Core dependency injection components
+from .service_collection import ServiceCollection
+from .service_lifetime import ServiceLifetime
+from .service_locator import get_named_service, get_service
+from .service_provider import ServiceProvider
+from .service_registration import ServiceRegistration
 
 # Type hints and utilities
 from .type_hints import *
-from .dependency_injection_utils import *
 
 # Public API - only expose what users should directly interact with
 __all__ = [

@@ -1,9 +1,10 @@
 import inspect
 import logging
-from typing import Dict, Type, Any, Callable, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Type
+
+from .dependency_injection_utils import extract_named_dependencies, get_base_type
 from .service_lifetime import ServiceLifetime
 from .service_registration import ServiceRegistration
-from .dependency_injection_utils import extract_named_dependencies, get_base_type
 from .type_hints import T
 
 if TYPE_CHECKING:

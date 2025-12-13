@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any, TypeVar, Type, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Type, TypeVar
 
 if TYPE_CHECKING:
     from .i_configuration_section import IConfigurationSection

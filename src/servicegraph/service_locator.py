@@ -5,6 +5,7 @@ service provider.
 """
 
 from typing import Type, TypeVar
+
 from .request_context import RequestContext
 
 T = TypeVar("T")

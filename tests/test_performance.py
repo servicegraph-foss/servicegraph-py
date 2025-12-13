@@ -1,11 +1,13 @@
 """Performance and memory management tests."""
 
-import pytest
-import time
-import threading
 import gc
+import threading
+import time
 import weakref
 from concurrent.futures import ThreadPoolExecutor, as_completed
+
+import pytest
+
 from servicegraph import ApplicationBuilder
 from servicegraph.service_lifetime import ServiceLifetime
 

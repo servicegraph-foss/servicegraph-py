@@ -1,4 +1,4 @@
-from typing import TypeVar, Type, Dict, Any, Callable
+from typing import Any, Callable, Dict, Type, TypeVar
 
 # Generic type variable for service types
 T = TypeVar("T")

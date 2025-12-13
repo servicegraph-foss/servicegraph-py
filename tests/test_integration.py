@@ -1,10 +1,12 @@
 """Integration tests for complete servicegraph workflows."""
 
-import pytest
 import json
-import tempfile
 import os
+import tempfile
 from abc import ABC, abstractmethod
+
+import pytest
+
 from servicegraph import ApplicationBuilder, IConfiguration
 from servicegraph.service_lifetime import ServiceLifetime
 

@@ -1,7 +1,9 @@
 """Core dependency injection functionality tests."""
 
-import pytest
 from abc import ABC, abstractmethod
+
+import pytest
+
 from servicegraph import ApplicationBuilder, ServiceProvider
 from servicegraph.service_lifetime import ServiceLifetime
 

@@ -1,10 +1,11 @@
 import json
 import os
 from pathlib import Path
-from typing import Dict, Any, Union, List
-from .i_configuration_builder import IConfigurationBuilder
-from .i_configuration import IConfiguration
+from typing import Any, Dict, List, Union
+
 from .configuration import Configuration
+from .i_configuration import IConfiguration
+from .i_configuration_builder import IConfigurationBuilder
 
 
 class ConfigurationBuilder(IConfigurationBuilder):

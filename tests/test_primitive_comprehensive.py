@@ -1,8 +1,10 @@
 """Comprehensive test demonstrating proper primitive type handling in DI."""
 
-import pytest
 import logging
 from abc import ABC, abstractmethod
+
+import pytest
+
 from servicegraph import ApplicationBuilder
 
 

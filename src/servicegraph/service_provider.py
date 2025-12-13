@@ -1,11 +1,11 @@
-from threading import RLock
-from typing import Any, Dict, Type, Optional, List
 import atexit
 from datetime import datetime, timedelta, timezone
+from threading import RLock
+from typing import Any, Dict, List, Optional, Type
 
-from .type_hints import T
 from .service_collection import ServiceCollection
 from .service_lifetime import ServiceLifetime
+from .type_hints import T
 
 
 class ServiceNotRegisteredException(Exception):

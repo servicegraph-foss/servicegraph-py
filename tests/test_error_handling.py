@@ -1,8 +1,10 @@
 """Error handling and edge case tests."""
 
-import pytest
 from abc import ABC, abstractmethod
-from typing import Generic, TypeVar, List
+from typing import Generic, List, TypeVar
+
+import pytest
+
 from servicegraph import ApplicationBuilder, ServiceProvider
 
 # ========================

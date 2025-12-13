@@ -1,9 +1,11 @@
 """Service lifetime management tests."""
 
-import pytest
-import time
 import threading
+import time
 from unittest.mock import patch
+
+import pytest
+
 from servicegraph import ApplicationBuilder, ServiceLifetime, ServiceProvider
 
 # ========================

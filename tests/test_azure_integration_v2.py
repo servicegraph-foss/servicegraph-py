@@ -1,14 +1,15 @@
 """Azure Functions integration tests - properly designed for singleton."""
 
-from typing import Annotated
-import pytest
 import os
 from abc import ABC, abstractmethod
+from typing import Annotated
 from unittest.mock import Mock
+
+import pytest
+
 from servicegraph import ApplicationBuilder, IConfiguration
 from servicegraph.dependency_injection_utils import Named
 from servicegraph.service_lifetime import ServiceLifetime
-
 
 # ========================
 # Test Fixtures

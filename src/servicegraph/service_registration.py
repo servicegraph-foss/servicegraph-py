@@ -1,4 +1,5 @@
-from typing import Type, Callable, Optional, Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Callable, Optional, Type
+
 from .service_lifetime import ServiceLifetime
 
 if TYPE_CHECKING:

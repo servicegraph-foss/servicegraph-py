@@ -1,7 +1,9 @@
 """Sanity check tests to ensure factory-based registration works with primitive types."""
 
-import pytest
 from abc import ABC, abstractmethod
+
+import pytest
+
 from servicegraph import ApplicationBuilder, ServiceProvider
 
 

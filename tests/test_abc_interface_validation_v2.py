@@ -4,12 +4,13 @@ This test module is designed to work with the singleton ServiceProvider pattern.
 All tests use unique service names to avoid conflicts when run together.
 """
 
-import pytest
 from abc import ABC, abstractmethod
 from typing import Generic, TypeVar
+
+import pytest
+
 from servicegraph import ApplicationBuilder
 from servicegraph.service_lifetime import ServiceLifetime
-
 
 # Module-level interfaces and implementations with unique names
 
