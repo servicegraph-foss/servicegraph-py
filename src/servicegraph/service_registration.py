@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, Callable, Optional, Type
+from typing import TYPE_CHECKING, Any, Callable, Optional
 
 from .service_lifetime import ServiceLifetime
 
@@ -9,8 +9,8 @@ if TYPE_CHECKING:
 class ServiceRegistration:
     def __init__(
         self,
-        service_type: Type,
-        implementation: Type,
+        service_type: type[Any],
+        implementation: type[Any],
         lifetime: ServiceLifetime,
         factory: Callable[["ServiceProvider"], Any],
         name: Optional[str] = None,
@@ -34,7 +34,7 @@ class ServiceRegistration:
             return f"{service_key}#{self.name}"
         return service_key
 
-    def _get_service_key(self, service_type: Type) -> str:
+    def _get_service_key(self, service_type: type[Any]) -> str:
         """Generate a unique key for the service type, handling generic types like Callable"""
         if hasattr(service_type, "__name__"):
             return service_type.__name__

@@ -4,7 +4,7 @@ Provides easy access to services within any execution context via the singleton
 service provider.
 """
 
-from typing import Type, TypeVar
+from typing import Type, TypeVar, cast
 
 from .request_context import RequestContext
 
@@ -32,7 +32,7 @@ def get_service(service_type: Type[T]) -> T:
             "within an execution context."
         )
 
-    return service_provider.get_service(service_type)
+    return cast(T, service_provider.get_service(service_type))
 
 
 def get_named_service(service_type: Type[T], name: str) -> T:
@@ -57,4 +57,4 @@ def get_named_service(service_type: Type[T], name: str) -> T:
             "within an execution context."
         )
 
-    return service_provider.get_named_service(service_type, name)
+    return cast(T, service_provider.get_named_service(service_type, name))

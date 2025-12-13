@@ -33,7 +33,7 @@ class ConfigurationSection(IConfigurationSection):
 
     def get_children(self) -> Dict[str, IConfigurationSection]:
         """Get all child sections."""
-        children = {}
+        children: Dict[str, IConfigurationSection] = {}
         for key, value in self._data.items():
             if isinstance(value, dict):
                 section_path = f"{self._path}:{key}" if self._path else key

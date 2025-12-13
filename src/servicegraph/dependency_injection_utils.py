@@ -3,7 +3,7 @@ Utilities for dependency injection with named services using Annotated types.
 """
 
 import inspect
-from typing import Annotated, Dict, Type, get_args, get_origin
+from typing import Any, Annotated, Dict, get_args, get_origin
 
 
 class NamedService:
@@ -27,14 +27,14 @@ def Named(name: str) -> NamedService:
     return NamedService(name)
 
 
-def extract_named_dependencies(implementation: Type) -> Dict[str, str]:
+def extract_named_dependencies(implementation: type[Any]) -> Dict[str, str]:
     """
     Extract named service dependencies from constructor annotations.
 
     Returns a mapping of parameter_name -> service_name for parameters
     that are annotated with Named().
     """
-    named_deps = {}
+    named_deps: Dict[str, str] = {}
 
     try:
         sig = inspect.signature(implementation.__init__)
@@ -62,7 +62,7 @@ def extract_named_dependencies(implementation: Type) -> Dict[str, str]:
     return named_deps
 
 
-def get_base_type(annotation) -> Type:
+def get_base_type(annotation: Any) -> type[Any]:
     """
     Extract the base type from an Annotated type.
 

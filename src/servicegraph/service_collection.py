@@ -1,6 +1,6 @@
 import inspect
 import logging
-from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Type
+from typing import TYPE_CHECKING, Any, Callable, Dict, Optional
 
 from .dependency_injection_utils import extract_named_dependencies, get_base_type
 from .service_lifetime import ServiceLifetime
@@ -20,7 +20,7 @@ class ServiceCollection:
         self._registrations: Dict[str, ServiceRegistration] = {}
 
     def _validate_implementation_type(
-        self, service_type: Type, implementation: Type, method_name: str = "add"
+        self, service_type: type[Any], implementation: type[Any], method_name: str = "add"
     ) -> None:
         """
         Validate that the implementation type is compatible with the service type.
@@ -50,18 +50,19 @@ class ServiceCollection:
             # Handle any remaining edge cases gracefully
             if "issubclass()" in str(e):
                 # For complex types we can't validate, just skip validation
-                return
-            raise
+                pass
+            else:
+                raise
 
     # Core registration methods
     def add(
         self,
-        service_type: Type,
-        implementation: Optional[Type[T]] = None,
+        service_type: type[Any],
+        implementation: Optional[type[T]] = None,
         factory: Optional[Callable[["ServiceProvider"], Any]] = None,
         lifetime: ServiceLifetime = ServiceLifetime.SINGLETON,
         name: Optional[str] = None,
-    ):
+    ) -> "ServiceCollection":
         """
         Core registration method that handles all scenarios.
 
@@ -102,8 +103,8 @@ class ServiceCollection:
 
     # Convenience methods for common patterns
     def add_singleton(
-        self, service_type: Type, implementation: Optional[Type[T]] = None
-    ):
+        self, service_type: type[Any], implementation: Optional[type[T]] = None
+    ) -> "ServiceCollection":
         """
         Add a singleton service.
 
@@ -115,7 +116,7 @@ class ServiceCollection:
             service_type, implementation, lifetime=ServiceLifetime.SINGLETON
         )
 
-    def add_scoped(self, service_type: Type, implementation: Optional[Type[T]] = None):
+    def add_scoped(self, service_type: type[Any], implementation: Optional[type[T]] = None) -> "ServiceCollection":
         """
         Add a scoped service.
 
@@ -126,8 +127,8 @@ class ServiceCollection:
         return self.add(service_type, implementation, lifetime=ServiceLifetime.SCOPED)
 
     def add_transient(
-        self, service_type: Type, implementation: Optional[Type[T]] = None
-    ):
+        self, service_type: type[Any], implementation: Optional[type[T]] = None
+    ) -> "ServiceCollection":
         """
         Add a transient service.
 
@@ -141,10 +142,10 @@ class ServiceCollection:
 
     def add_factory(
         self,
-        service_type: Type,
+        service_type: type[Any],
         factory: Callable[["ServiceProvider"], Any],
         lifetime: ServiceLifetime = ServiceLifetime.SINGLETON,
-    ):
+    ) -> "ServiceCollection":
         """
         Add a service using a factory function.
 
@@ -157,10 +158,10 @@ class ServiceCollection:
     def add_named(
         self,
         name: str,
-        service_type: Type,
-        implementation: Optional[Type[T]] = None,
+        service_type: type[Any],
+        implementation: Optional[type[T]] = None,
         lifetime: ServiceLifetime = ServiceLifetime.SINGLETON,
-    ):
+    ) -> "ServiceCollection":
         """
         Add a named service.
 
@@ -175,10 +176,10 @@ class ServiceCollection:
     def add_named_factory(
         self,
         name: str,
-        service_type: Type,
+        service_type: type[Any],
         factory: Callable[["ServiceProvider"], Any],
         lifetime: ServiceLifetime = ServiceLifetime.SINGLETON,
-    ):
+    ) -> "ServiceCollection":
         """
         Add a named service using a factory function.
 
@@ -189,7 +190,7 @@ class ServiceCollection:
         """
         return self.add(service_type, factory=factory, lifetime=lifetime, name=name)
 
-    def add_instance(self, service_type: Type, instance: Any):
+    def add_instance(self, service_type: type[Any], instance: Any) -> "ServiceCollection":
         """
         Add a pre-configured instance as a singleton service.
 
@@ -212,7 +213,7 @@ class ServiceCollection:
             service_type, factory=instance_factory, lifetime=ServiceLifetime.SINGLETON
         )
 
-    def remove(self, service_type: Type, name: Optional[str] = None) -> bool:
+    def remove(self, service_type: type[Any], name: Optional[str] = None) -> bool:
         """
         Remove a service registration by type and optional name.
 
@@ -230,7 +231,7 @@ class ServiceCollection:
             return True
         return False
 
-    def remove_all_by_type(self, service_type: Type) -> int:
+    def remove_all_by_type(self, service_type: type[Any]) -> int:
         """
         Remove all registrations for a specific service type (including named variants).
 
@@ -249,7 +250,7 @@ class ServiceCollection:
 
         return len(keys_to_remove)
 
-    def remove_all_by_implementation(self, implementation: Type) -> int:
+    def remove_all_by_implementation(self, implementation: type[Any]) -> int:
         """
         Remove all registrations that use a specific implementation type.
 
@@ -286,7 +287,7 @@ class ServiceCollection:
         """Remove all service registrations."""
         self._registrations.clear()
 
-    def _get_service_key(self, service_type: Type) -> str:
+    def _get_service_key(self, service_type: type[Any]) -> str:
         """Generate a unique key for the service type."""
         if hasattr(service_type, "__name__"):
             return service_type.__name__
@@ -294,7 +295,7 @@ class ServiceCollection:
             # Handle generic types
             return str(service_type)
 
-    def _is_primitive_type(self, param_type: Type) -> bool:
+    def _is_primitive_type(self, param_type: type[Any]) -> bool:
         """
         Check if a type is a primitive/built-in type that should not be injected.
 
@@ -333,7 +334,7 @@ class ServiceCollection:
     def _validate_lifecycle_dependency(
         self,
         parent_lifetime: ServiceLifetime,
-        dependency_type: Type,
+        dependency_type: type[Any],
         parent_name: str,
         param_name: str,
     ) -> None:
@@ -389,8 +390,8 @@ class ServiceCollection:
         # Scoped can depend on anything (Singleton, Transient, Scoped) - no validation needed
 
     def _create_factory(
-        self, implementation: Type[T], lifetime: ServiceLifetime
-    ) -> Callable:
+        self, implementation: type[T], lifetime: ServiceLifetime
+    ) -> Callable[["ServiceProvider"], Any]:
         """
         Creates a factory function for the given implementation type.
         Handles dependency injection by analyzing constructor parameters.
@@ -454,7 +455,7 @@ class ServiceCollection:
             )
 
         def factory(provider: "ServiceProvider") -> Any:
-            kwargs = {}
+            kwargs: Dict[str, Any] = {}
 
             for param_name, param in sig.parameters.items():
                 if param_name == "self":

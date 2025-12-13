@@ -1,7 +1,7 @@
 import atexit
 from datetime import datetime, timedelta, timezone
 from threading import RLock
-from typing import Any, Dict, List, Optional, Type
+from typing import Any, Dict, List, Optional, cast
 
 from .service_collection import ServiceCollection
 from .service_lifetime import ServiceLifetime
@@ -23,20 +23,20 @@ class CircularDependencyException(Exception):
 class ScopedServiceContextManager:
     """Context manager wrapper for scoped services that enforces proper usage."""
 
-    def __init__(self, service_instance, session_id: str, provider: "ServiceProvider"):
+    def __init__(self, service_instance: Any, session_id: str, provider: "ServiceProvider") -> None:
         self._service_instance = service_instance
         self._session_id = session_id
         self._provider = provider
         self._entered = False
         self._exited = False
 
-    def __enter__(self):
+    def __enter__(self) -> Any:
         if self._exited:
             raise RuntimeError("Scoped service has already been disposed")
         self._entered = True
         return self._service_instance
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         self._exited = True
         # Dispose of the scoped service instance itself
         if hasattr(self._service_instance, "dispose"):
@@ -100,7 +100,7 @@ class ServiceProvider:
     _instance = None
     _lock = RLock()
 
-    def __new__(cls, service_collection: ServiceCollection = None):
+    def __new__(cls, service_collection: Optional[ServiceCollection] = None) -> "ServiceProvider":
         if cls._instance is None:
             with cls._lock:
                 if cls._instance is None:
@@ -108,13 +108,14 @@ class ServiceProvider:
                     cls._instance._initialized = False
         return cls._instance
 
-    def __init__(self, service_collection: ServiceCollection):
+    def __init__(self, service_collection: Optional[ServiceCollection] = None) -> None:
         # Always update the collection reference to support dynamic
         # reconfiguration
-        self._collection = service_collection
+        if service_collection is not None:
+            self._collection = service_collection
 
         # Only initialize instance variables once
-        if self._initialized:
+        if hasattr(self, "_initialized") and self._initialized:
             return
 
         # First-time initialization
@@ -140,9 +141,9 @@ class ServiceProvider:
         # Register cleanup for singletons when process exits (Azure Functions worker recycling)
         atexit.register(self._cleanup_singletons)
 
-        self._initialized = True
+        self._initialized: bool = True
 
-    def get_service(self, service_type: Type[T], session_id: Optional[str] = None) -> T:
+    def get_service(self, service_type: type[T], session_id: Optional[str] = None) -> T:
         """
         Resolves a service from the container by type.
         For named services, use get_named_service instead.
@@ -195,7 +196,7 @@ class ServiceProvider:
         return self._get_or_create_instance(registration, session_id)
 
     def get_named_service(
-        self, service_type: Type[T], name: str, session_id: Optional[str] = None
+        self, service_type: type[T], name: str, session_id: Optional[str] = None
     ) -> T:
         """
         Resolves a named service from the container.
@@ -246,10 +247,10 @@ class ServiceProvider:
             raise ServiceNotRegisteredException(error_msg)
 
         registration = self._collection._registrations[registration_key]
-        return self._get_or_create_instance(registration, session_id)
+        return cast(T, self._get_or_create_instance(registration, session_id))
 
     def get_all_named_services(
-        self, service_type: Type[T], session_id: Optional[str] = None
+        self, service_type: type[T], session_id: Optional[str] = None
     ) -> Dict[str, T]:
         """
         Resolves all named services for a given type.
@@ -347,7 +348,7 @@ class ServiceProvider:
         return services
 
     def get_services_by_type(
-        self, service_type: Type = None
+        self, service_type: Optional[type[Any]] = None
     ) -> Dict[str, Dict[str, Any]]:
         """
         Get all services of a specific type, or all services if no type specified.
@@ -380,7 +381,7 @@ class ServiceProvider:
             )
         )
 
-    def has_service(self, service_type: Type, name: str = None) -> bool:
+    def has_service(self, service_type: type[Any], name: Optional[str] = None) -> bool:
         """
         Check if a service is registered.
 
@@ -422,7 +423,7 @@ class ServiceProvider:
         self.clear_singleton_instances()
         self.clear_all_sessions()
 
-    def remove_service(self, service_type: Type, name: Optional[str] = None) -> bool:
+    def remove_service(self, service_type: type[Any], name: Optional[str] = None) -> bool:
         """
         Remove a service registration and its cached instance.
 
@@ -456,7 +457,7 @@ class ServiceProvider:
 
         return removed
 
-    def remove_all_by_type(self, service_type: Type) -> int:
+    def remove_all_by_type(self, service_type: type[Any]) -> int:
         """
         Remove all registrations for a service type and clear cached instances.
 
@@ -490,7 +491,7 @@ class ServiceProvider:
 
         return count
 
-    def remove_all_by_implementation(self, implementation: Type) -> int:
+    def remove_all_by_implementation(self, implementation: type[Any]) -> int:
         """
         Remove all registrations using an implementation and clear cached instances.
 
@@ -526,7 +527,7 @@ class ServiceProvider:
 
     def _get_or_create_instance(
         self,
-        registration,
+        registration: Any,
         session_id: Optional[str] = None,
         is_dependency: bool = False,
     ) -> Any:
@@ -623,7 +624,7 @@ class ServiceProvider:
                 f"  • ServiceLifetime.SCOPED - One instance per scope (use with 'with' statement)"
             )
 
-    def _get_or_create_session_service(self, registration, session_id: str) -> Any:
+    def _get_or_create_session_service(self, registration: Any, session_id: str) -> Any:
         """Get or create a session-scoped transient service instance."""
         with self._instance_lock:
             self._cleanup_expired_sessions()
@@ -644,7 +645,7 @@ class ServiceProvider:
 
             return session_services[registration.registration_key]
 
-    def _cleanup_expired_sessions(self):
+    def _cleanup_expired_sessions(self) -> None:
         """Remove expired sessions."""
         now = datetime.now(timezone.utc)
         expired_sessions = [
@@ -656,7 +657,7 @@ class ServiceProvider:
         for session_id in expired_sessions:
             self.dispose_session(session_id)
 
-    def _dispose_service(self, service):
+    def _dispose_service(self, service: Any) -> None:
         """Dispose a single service instance."""
         if hasattr(service, "dispose"):
             try:
@@ -669,7 +670,7 @@ class ServiceProvider:
             except Exception:
                 pass
 
-    def _cleanup_singletons(self):
+    def _cleanup_singletons(self) -> None:
         """Cleanup singleton instances when process exits."""
         for instance in self._singleton_instances.values():
             if hasattr(instance, "dispose"):
@@ -683,7 +684,7 @@ class ServiceProvider:
                 except Exception:
                     pass  # Ignore errors during shutdown
 
-    def _get_service_key(self, service_type: Type) -> str:
+    def _get_service_key(self, service_type: type[Any]) -> str:
         """Generate a unique key for the service type, handling generic types like Callable"""
         if hasattr(service_type, "__name__"):
             return service_type.__name__

@@ -11,7 +11,7 @@ from .i_configuration_builder import IConfigurationBuilder
 class ConfigurationBuilder(IConfigurationBuilder):
     """Builder for creating configuration."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._sources: List[Dict[str, Any]] = []
 
     def add_json_file(
@@ -39,7 +39,7 @@ class ConfigurationBuilder(IConfigurationBuilder):
 
     def add_environment_variables(self, prefix: str = "") -> "ConfigurationBuilder":
         """Add environment variables to configuration."""
-        env_data = {}
+        env_data: Dict[str, Any] = {}
 
         for key, value in os.environ.items():
             if not prefix or key.startswith(prefix):
@@ -74,7 +74,7 @@ class ConfigurationBuilder(IConfigurationBuilder):
 
     def build(self) -> IConfiguration:
         """Build the final configuration by merging all sources."""
-        merged_data = {}
+        merged_data: Dict[str, Any] = {}
 
         # Merge all sources (later sources override earlier ones)
         for source in self._sources:

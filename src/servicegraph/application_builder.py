@@ -1,4 +1,4 @@
-from typing import Callable, Optional
+from typing import Any, Callable, Optional
 
 from .configuration_builder import ConfigurationBuilder
 from .i_configuration import IConfiguration
@@ -8,17 +8,17 @@ from .service_provider import ServiceProvider
 
 
 class ApplicationBuilder:
-    def __init__(self, environment: str = None):
+    def __init__(self, environment: Optional[str] = None) -> None:
         self.environment = environment
         self.services = ServiceCollection()
-        self._middleware = []
+        self._middleware: list[Any] = []
         self._configuration: Optional[IConfiguration] = None
         self._config_builder: Optional[IConfigurationBuilder] = None
 
         # Always ensure a default configuration is available
         self._ensure_default_configuration()
 
-    def _ensure_default_configuration(self):
+    def _ensure_default_configuration(self) -> None:
         """Ensure a default empty configuration is always available."""
         if self._configuration is None:
             # Create a default empty configuration
@@ -50,12 +50,12 @@ class ApplicationBuilder:
         """Get the current configuration."""
         return self._configuration
 
-    def configure_services(self, callback: Callable[["ApplicationBuilder"], None]):
+    def configure_services(self, callback: Callable[["ApplicationBuilder"], None]) -> "ApplicationBuilder":
         """Mimics builder.ConfigureServices()"""
         callback(self)
         return self
 
-    def use_middleware(self, middleware_factory: Callable):
+    def use_middleware(self, middleware_factory: Callable[..., Any]) -> "ApplicationBuilder":
         """Mimics app.UseMiddleware<T>()"""
         self._middleware.append(middleware_factory)
         return self
