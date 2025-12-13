@@ -14,6 +14,13 @@ Dependency injection transforms tightly-coupled code into maintainable, testable
 pip install servicegraph
 ```
 
+### Requirements
+
+- **Python 3.9+** (Python 3.8 is not supported due to syntax compatibility issues)
+- No external runtime dependencies (except `typing-extensions` for Python < 3.10)
+
+> **⚠️ IMPORTANT:** Version 0.1.0 is deprecated and will not work correctly. Please use version 0.1.1 or later.
+
 ## Quick Start
 
 ```python
@@ -77,7 +84,7 @@ notification_service.send("Hello, World!")
 - **Complex multi-tenant scenarios** → `dependency-injector` has more enterprise features
 
 ### ❌ Not Ideal For
-- **Python 2.7 or <3.8** - requires modern type hints
+- **Python 2.7 or <3.9** - requires modern type hints
 - **Projects avoiding type hints** - core to servicegraph's design
 - **Need for decorators on every class** - servicegraph is registration-based, not decorator-based
 
