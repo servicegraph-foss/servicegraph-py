@@ -59,7 +59,7 @@ __all__ = [
 __description__ = "A lightweight dependency injection framework for Python"
 __url__ = "https://github.com/servicegraph-foss/servicegraph-py"
 __maintainer__ = "servicegraph Contributors"
-__maintainer_email__ = "servicegraph.contact@gmail.com"
+__maintainer_email__ = "servicegraph.contact@zohomail.com"
 
 # Minimum Python version requirement
 import sys

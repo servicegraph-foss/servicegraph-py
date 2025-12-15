@@ -10,7 +10,7 @@
 
 **Please do not report security vulnerabilities through public GitHub issues.**
 
-Instead, please send an email to servicegraph.contact@gmail.com.
+Instead, please send an email to servicegraph.contact@zohomail.com.
 
 You should receive a response within 48 hours. If for some reason you do not, please follow up via email to ensure we received your original message.
 
