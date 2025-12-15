@@ -157,10 +157,9 @@ class TestPerformanceCharacteristics:
         avg_subsequent_time = sum(resolution_times) / len(resolution_times)
 
         # Subsequent resolutions should be at least 10x faster than first
-        # (or both should be negligibly fast)
-        if (
-            first_resolution_time > 0.0001
-        ):  # Only check if first resolution was measurable
+        # Only check if first resolution was measurably slow (> 1ms)
+        # At microsecond scales, timing precision makes this check unreliable
+        if first_resolution_time > 0.001:
             assert avg_subsequent_time < first_resolution_time / 10
 
         # All subsequent resolutions should be very fast (< 1ms)
