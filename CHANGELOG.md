@@ -5,6 +5,14 @@ All notable changes to the servicegraph project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.2] - 2025-12-15
+
+### Changed
+- **Contact Information** - Updated contact email address in project metadata
+
+### Fixed
+- **Performance Tests** - Made performance test thresholds more forgiving to prevent flaky test failures on different platforms. The 10x improvement assertion threshold was increased from 100μs to 1ms to account for timing precision limitations at microsecond scales.
+
 ## [0.1.1] - 2025-12-13
 
 ### Changed
