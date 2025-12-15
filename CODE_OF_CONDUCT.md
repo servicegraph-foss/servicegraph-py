@@ -42,7 +42,7 @@ Everyone here is working to build something useful. Let's keep discussions focus
 
 ## Enforcement
 
-Instances of abusive, harassing, or otherwise unacceptable behavior may be reported to the project team at servicegraph.contact@gmail.com
+Instances of abusive, harassing, or otherwise unacceptable behavior may be reported to the project team at servicegraph.contact@zohomail.com
 
 All complaints will be reviewed and investigated promptly and fairly.
 
