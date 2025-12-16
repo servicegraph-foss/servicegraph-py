@@ -70,6 +70,7 @@ notification_service.send("Hello, World!")
 ## When to Use servicegraph
 
 ### ✅ Great Fit
+
 - **Migrating from .NET to Python** - familiar patterns reduce friction
 - **Serverless/stateless platforms** (Azure Functions, AWS Lambda, etc.) - built-in scope management per invocation
 - **Microservices** - zero dependencies means smaller containers
@@ -78,12 +79,14 @@ notification_service.send("Hello, World!")
 - **Type-safe codebases** - leverages Python's type system
 
 ### ⚠️ Consider Alternatives
+
 - **Need YAML/JSON configuration** → use `dependency-injector`
 - **Already using FastAPI** → stick with `Depends()`
 - **Want implicit autowiring** → consider `pinject` (if risk of abandonment is acceptable)
 - **Complex multi-tenant scenarios** → `dependency-injector` has more enterprise features
 
 ### ❌ Not Ideal For
+
 - **Python 2.7 or <3.9** - requires modern type hints
 - **Projects avoiding type hints** - core to servicegraph's design
 - **Need for decorators on every class** - servicegraph is registration-based, not decorator-based
@@ -140,6 +143,7 @@ class IPaymentProcessor:  # Missing ABC inheritance
 ```
 
 **Why this matters:**
+
 - **Type Safety**: Ensures interfaces are properly defined contracts
 - **IDE Support**: Excellent IntelliSense and error detection
 - **Runtime Validation**: Prevents instantiation of incomplete implementations
@@ -198,14 +202,17 @@ The configuration system provides sensible defaults while remaining highly custo
 Understanding service lifetimes is crucial for both performance and correctness in dependency injection.
 
 ### Singleton
+
 ```python
 builder.services.add_singleton(INotificationService, NotificationService)
 ```
+
 **What happens**: One instance created for the entire application lifetime.
 **Use when**: Services are stateless, expensive to create, or need to maintain state across requests.
 **Memory impact**: Minimal - single instance regardless of usage frequency.
 
 ### Transient
+
 ```python
 builder.services.add_transient(INotificationService, NotificationService)
 
@@ -221,18 +228,21 @@ service3 = provider.get_service(INotificationService, "different_session")  # Ne
 # Clean up session when done
 provider.dispose_session(session_id)
 ```
+
 **What happens**: New instance created every time the service is requested, unless a session_id is provided.
 **Use when**: Services are lightweight, stateful per operation, or you need isolation between usages.
 **Session management**: When you provide a `session_id`:
+
 - **New session**: If the session doesn't exist, a new session is created with a fresh service instance
 - **Existing session**: If the session exists, the same service instance is returned
 - **Per-service tracking**: Each service type gets its own instance within a session
-**Client considerations**: 
+**Client considerations**:
 - Use `dispose_session(session_id)` to clean up session-scoped instances
 - Sessions automatically expire after 30 minutes of inactivity
 - Transient services in long-running operations should be explicitly disposed if they implement `IDisposable` or have cleanup requirements.
 
 ### Scoped
+
 ```python
 builder.services.add_scoped(INotificationService, NotificationService)
 
@@ -248,26 +258,57 @@ with provider.get_service(IDatabaseConnection, session_id="request_123") as db:
 # Service disposed, but session persists for other services to reuse transients
 
 # Dependency injection - graceful behavior without context manager
-class EmailService:
-    def __init__(self, notification_service: INotificationService):
-        self.notification_service = notification_service  # ✅ Works seamlessly
+class RequestHandler:
+    def __init__(self, db_connection: IDatabaseConnection):
+        self.db_connection = db_connection  # ✅ Works seamlessly
 
-builder.services.add_transient(EmailService)
-email_service = provider.get_service(EmailService)  # ✅ No context manager needed
+builder.services.add_scoped(RequestHandler)
+handler = provider.get_service(RequestHandler)  # ✅ No context manager needed for dependencies
+
+# Scoped service depending on a Transient service - session_id required
+class DatabaseConnection:
+    def __init__(self, query_builder: IQueryBuilder):  # Transient dependency
+        self.query_builder = query_builder
+
+builder.services.add_transient(IQueryBuilder, QueryBuilder)
+builder.services.add_scoped(IDatabaseConnection, DatabaseConnection)
+
+# ✅ CORRECT: Provide session_id when scoped service depends on transient
+with provider.get_service(IDatabaseConnection, session_id="request_123") as db:
+    db.execute_query()  # QueryBuilder instance is consistent within this session
+
+# ⚠️ WITHOUT session_id: Transient dependencies may vary on each scoped resolution
+with provider.get_service(IDatabaseConnection) as db:
+    db.execute_query()  # New QueryBuilder instance created (no session tracking)
+
+# Scoped service depending on a Singleton service - no session_id needed
+class RequestProcessor:
+    def __init__(self, logger: ILogger):  # Singleton dependency
+        self.logger = logger
+
+builder.services.add_singleton(ILogger, Logger)
+builder.services.add_scoped(IRequestProcessor, RequestProcessor)
+
+# ✅ No session_id required - singleton is shared across all scopes
+with provider.get_service(IRequestProcessor) as processor:
+    processor.process()  # Logger instance is the same singleton for all requests
 ```
+
 **What happens**: One instance per scope, automatically disposed when the scope ends.
 **Use when**: You need per-request state with guaranteed cleanup (database connections, file handles, etc.).
 **Session ID**: Optional parameter that creates a session for consistent transient resolution within the scoped service's dependencies.
 
 **Graceful Dependency Injection**: servicegraph intelligently handles scoped services differently based on context:
+
 - **Direct resolution** (`provider.get_service(IScopedService)`): Returns a context manager wrapper that enforces the `with` pattern
 - **Dependency injection** (constructor parameter): Automatically unwraps to the raw instance—no context manager required
 - **Automatic session management**: When used as dependencies, scoped services automatically inherit the session context from their parent scope
 - **Cascading cleanup**: All scoped dependencies are tracked and disposed together when the parent scope ends
 
-**Why this matters**: You can safely inject scoped services (like database connections) into transient or singleton services without worrying about context manager syntax. The framework ensures proper lifecycle management and resource cleanup automatically.
+**Why this matters**: When a scoped service depends on another scoped service, you don't need to worry about context manager syntax for the dependency. The framework automatically unwraps scoped dependencies and ensures proper lifecycle management and cleanup. Note that lifecycle dependency rules still apply—scoped services cannot be injected into singleton or transient services.
 
 **Session persistence with transients** (when using `session_id`): When a scoped service depends on a transient service and you provide a `session_id`, the transient instance persists in the session beyond the scoped service's lifecycle:
+
 ```python
 builder.services.add_scoped(IDatabaseConnection, DatabaseConnection)
 builder.services.add_transient(IQueryBuilder, QueryBuilder)  # Used by DatabaseConnection
@@ -301,20 +342,26 @@ with provider.get_service(IDatabaseConnection) as db:
 
 **servicegraph enforces strict lifetime compatibility rules** to prevent subtle bugs where longer-lived services depend on shorter-lived ones. These validations occur at registration time, catching configuration errors early.
 
-**The Sliding Scale Rule**:
-```
-Singleton (longest lifetime)
-    ↓ can depend on
-Transient (medium lifetime)
-    ↓ can depend on
-Scoped (shortest lifetime)
-```
+**The Dependency Safety Rule**:
 
-Services can only depend on services with equal or longer lifetimes. Dependencies "up" the scale are allowed; dependencies "down" the scale are prohibited.
+Services with longer instance lifetimes cannot depend on services with shorter instance lifetimes, as this would cause the shorter-lived service to be incorrectly captured for too long.
+
+**Instance Lifetime Hierarchy** (from longest to shortest):
+
+1. **Singleton** - lives for entire application lifetime (longest)
+2. **Transient** - not bound to any scope, can be created anywhere (medium)
+3. **Scoped** - restricted to a specific scope context (shortest/narrowest)
+
+**Allowed Dependencies** (what each can depend on):
+
+- **Singleton** → can depend on: **Singleton only**
+- **Transient** → can depend on: **Singleton, Transient only**
+- **Scoped** → can depend on: **Singleton, Transient, Scoped** (anything)
 
 **Validation Rules**:
 
 1. **Singleton services CANNOT depend on Transient or Scoped services**
+
    ```python
    # ❌ INVALID - Singleton depending on Transient
    class SingletonService:
@@ -325,10 +372,11 @@ Services can only depend on services with equal or longer lifetimes. Dependencie
    builder.services.add_singleton(SingletonService)  
    # ValueError: Singleton services cannot depend on transient services
    ```
-   
+
    **Why prohibited**: Singletons are created once and reused. If a singleton depends on a transient, it would capture a single transient instance, violating the transient's "new instance every time" contract.
 
 2. **Transient services CANNOT depend on Scoped services**
+
    ```python
    # ❌ INVALID - Transient depending on Scoped
    class TransientService:
@@ -339,10 +387,11 @@ Services can only depend on services with equal or longer lifetimes. Dependencie
    builder.services.add_transient(TransientService)
    # ValueError: Transient services cannot depend on scoped services
    ```
-   
-   **Why prohibited**: Transient services can be created outside of a scope context, but scoped services require scope context. This would create orphaned scoped instances.
 
-3. **Valid Dependency Patterns** ✅
+   **Why prohibited**: Transient services can be created outside of a scope context, but scoped services are restricted to a specific scope. Scoped services have a narrower lifetime than transient services, so allowing this dependency would create orphaned scoped instances that outlive their intended scope.
+
+3. **Scoped services CAN depend on anything** ✅
+
    ```python
    # ✅ VALID - Scoped can depend on Transient
    class ScopedService:
@@ -367,6 +416,7 @@ Services can only depend on services with equal or longer lifetimes. Dependencie
 
 **Error Messages**:
 When you violate these rules, servicegraph provides clear, actionable error messages:
+
 ```
 ValueError: Invalid dependency in SingletonService: Singleton services cannot depend on 
 transient services.
@@ -414,6 +464,7 @@ service.smtp_host.lower() # ❌ AttributeError: 'NoneType' object has no attribu
 **The Design Decision:**
 
 servicegraph follows the principle that **the DI container should not crash your application**. Instead:
+
 - The service is created successfully (with `None` for primitive parameters without defaults)
 - Warnings are logged to alert you of the configuration issue
 - The error occurs when **you** try to use the improperly configured service
@@ -569,10 +620,12 @@ servicegraph was born from a specific need: **bringing .NET's familiar DI patter
 ### Core Principles
 
 1. **Zero Surprises for .NET Developers**
+
    ```csharp
    // C# ASP.NET Core
    services.AddTransient<IMyService, MyService>();
    ```
+
    ```python
    # Python servicegraph
    services.add(MyService, IMyService, lifetime=ServiceLifetime.TRANSIENT)
@@ -603,6 +656,7 @@ servicegraph was born from a specific need: **bringing .NET's familiar DI patter
 **Problem**: Serverless platforms (Azure Functions, AWS Lambda, etc.) can have concurrent executions in the same process. Traditional singleton patterns can cause data bleed between invocations.
 
 **servicegraph Solution**:
+
 ```python
 from servicegraph import ApplicationBuilder, ServiceLifetime
 import azure.functions as func  # or AWS Lambda handler, etc.
@@ -622,7 +676,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
     with provider.get_service(IRequestContext, session_id=session_id) as context:
         context.user_id = req.params.get('user_id')
         
-        # Other services in same session share scoped dependencies
+        # Transient services resolved with same session_id are reused within the session
         service = provider.get_service(IMyService, session_id=session_id)
         result = service.process()
         
@@ -631,17 +685,20 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
     return func.HttpResponse(result)
 ```
 
-**Why not dependency-injector?** 
+**Why not dependency-injector?**
+
 - Requires manual scope creation boilerplate
 - External dependencies increase cold start time
 - Configuration overhead for simple scenarios
 
 **Why not injector?**
+
 - No built-in scope management
 - Manual lifetime tracking required
 - Less intuitive for .NET developers
 
 **Why not FastAPI Depends?**
+
 - Not designed for serverless platforms
 - Requires FastAPI framework overhead
 
@@ -780,6 +837,7 @@ if __name__ == "__main__":
 ### Service Resolution Patterns
 
 **Direct Resolution** (Top-level services):
+
 ```python
 # Resolve when you need it
 service = provider.get_service(IMyService)
@@ -787,6 +845,7 @@ result = service.do_work()
 ```
 
 **Constructor Injection** (Preferred - automatic dependency resolution):
+
 ```python
 class DocumentProcessor:
     def __init__(
@@ -809,6 +868,7 @@ processor = provider.get_service(DocumentProcessor)  # All dependencies resolved
 ```
 
 **Scoped Services** (Request/operation lifetime):
+
 ```python
 def handle_request(request_id: str):
     # Simple usage - no session_id needed if scoped service has no transient dependencies
@@ -830,6 +890,7 @@ def handle_request(request_id: str):
 ```
 
 **When to use `session_id` with scoped services**:
+
 - ✅ **Use `session_id`** when your scoped service depends on transient services that should be reused within the same request/operation
 - ✅ **Use `session_id`** when you have multiple scoped services in the same request that should share transient dependencies
 - ❌ **Skip `session_id`** for simple scoped services with no transient dependencies (database connections, file handles, etc.)
@@ -954,6 +1015,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
 ```
 
 **Framework Support Status**:
+
 - ✅ **Azure Functions v2** - Full middleware support for HTTP triggers
 - 🔄 **FastAPI** - Planned (contributions welcome)
 - 🔄 **Flask/Django** - Planned (contributions welcome)
@@ -966,6 +1028,7 @@ The middleware pattern is designed to be framework-agnostic. Current implementat
 ### File-Based Configuration
 
 **Basic Setup (Single Source):**
+
 ```python
 def setup_config(config):
     config.add_json_file("appsettings.json", optional=True)
@@ -973,6 +1036,7 @@ def setup_config(config):
 ```
 
 **Chained Setup (Multiple Sources):**
+
 ```python
 def setup_config(config):
     return (config
@@ -1000,21 +1064,26 @@ config.get_value("database:port")  # Returns "5432"
 ```
 
 **Key points:**
+
 - Single underscore (`_`) separates words within the same key
 - Double underscore (`__`) creates nested configuration levels
 - After prefix removal, `__` is converted to `:` for hierarchical access
 
 **When to use each:**
+
 - **Basic setup**: Simple applications with one configuration source, or when you prefer explicit calls
 - **Chained setup**: Applications with multiple configuration layers (base + environment + runtime overrides)
 
 ### Hierarchical Configuration
+
 Configuration sources are processed in order, with later sources overriding earlier ones. This enables the standard pattern:
+
 1. **Base configuration** (`appsettings.json`)
 2. **Environment-specific overrides** (`appsettings.production.json`)
 3. **Runtime overrides** (environment variables)
 
 **Case-Insensitive Merging:** The configuration system merges sources intelligently regardless of key casing. For example:
+
 ```python
 # appsettings.json (lowercase keys)
 {
@@ -1035,6 +1104,7 @@ config.get_value("DATABASE:PORT")  # Returns: "3306" (same value, case-insensiti
 This ensures environment variables and configuration files work together seamlessly, regardless of naming conventions used in different sources.
 
 ### Strongly-Typed Configuration
+
 ```python
 @dataclass
 class ApiConfig:
@@ -1057,6 +1127,7 @@ def __init__(self, api_config: ApiConfig):
 servicegraph provides **intelligent memory management** designed for both stateless and long-running environments. This design reflects its versatility across different runtime platforms.
 
 **What this means for you**:
+
 - **Singleton services**: Persist for the application lifetime with automatic cleanup on shutdown—suitable for both stateless environments and long-running applications
 - **Transient services**: Created and released per request with session-based cleanup to prevent memory leaks
 - **Scoped services**: Guaranteed cleanup through context manager pattern
@@ -1067,18 +1138,21 @@ servicegraph provides **intelligent memory management** designed for both statel
 servicegraph was architected for **versatile deployment** across different platforms:
 
 **Stateless platforms** (optimized):
+
 - Azure Functions
 - AWS Lambda  
 - Container-based microservices
 - Serverless environments
 
 **Long-running applications** (fully supported):
+
 - Web applications and APIs
 - Background services and workers
 - Desktop applications
 - Multi-threaded server applications
 
 **Design benefits**:
+
 - **Fast startup**: Minimal overhead during container initialization
 - **Predictable lifecycle**: Service lifetimes align with request/response cycles or application lifetime
 - **Resource efficiency**: Automatic cleanup prevents memory leaks in both short and long-lived processes
@@ -1087,6 +1161,7 @@ servicegraph was architected for **versatile deployment** across different platf
 ### When to Consider Alternatives to servicegraph
 
 Consider alternatives if you're building:
+
 - **Applications requiring complex object lifecycle management** beyond the three standard lifetimes (singleton, transient, scoped)
 - **Systems with sophisticated disposal patterns** that need more than basic `dispose()`/`close()` method calling
 - **Applications with complex dependency graphs** that require advanced features like conditional registration, decorators, or aspect-oriented programming
@@ -1145,6 +1220,7 @@ This project is licensed under the **Apache License 2.0 with Commons Clause** - 
 - **Long-term stability** since standard library APIs rarely change
 
 **What this means for contributors:**
+
 - Core dependency injection functionality must use only Python's standard library
 - External dependencies are acceptable only for:
   - Testing frameworks (pytest, etc.)
@@ -1155,6 +1231,7 @@ This project is licensed under the **Apache License 2.0 with Commons Clause** - 
 All contributions will be evaluated against this standard library requirement. Pull requests introducing unnecessary external dependencies for core functionality will be respectfully declined with suggestions for standard library alternatives.
 
 **Current external dependencies:**
+
 - **None** for core DI functionality
 - Testing and Azure Functions integration may use appropriate external libraries
 
