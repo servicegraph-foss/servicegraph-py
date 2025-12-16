@@ -5,6 +5,22 @@ All notable changes to the servicegraph project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.3] - 2025-12-16
+
+### Fixed
+- **Documentation** - Corrected critical errors in README lifecycle dependency explanations:
+  - Fixed incorrect instance lifetime hierarchy ordering (Singleton → Transient → Scoped, from longest to shortest)
+  - Corrected "Allowed Dependencies" rules to accurately reflect validation logic
+  - Fixed invalid code examples showing Transient services depending on Scoped services (violates lifecycle rules)
+  - Updated "Graceful Dependency Injection" explanation to correctly state that scoped services cannot be injected into singleton or transient services
+  - Clarified session_id usage in serverless platform examples
+
+### Added
+- **Documentation** - Enhanced Scoped lifecycle examples:
+  - Added example showing scoped service depending on transient service with session_id requirement
+  - Added example showing scoped service depending on singleton service (no session_id needed)
+  - Improved clarity around when session_id parameter is required vs optional
+
 ## [0.1.2] - 2025-12-15
 
 ### Changed
