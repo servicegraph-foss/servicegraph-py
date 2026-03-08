@@ -113,17 +113,15 @@ class ServiceProvider:
         return cls._instance
 
     def __init__(self, service_collection: Optional[ServiceCollection] = None) -> None:
-        # Always update the collection reference to support dynamic
-        # reconfiguration
-        if service_collection is not None:
-            self._collection = service_collection
-
-        # Only initialize instance variables once
         if hasattr(self, "_initialized") and self._initialized:
+            if service_collection is not None:
+                raise RuntimeError(
+                    "ServiceProvider has already been built. ..."
+                )
             return
-
+    
         # First-time initialization
-        # Only cache singleton instances
+        self._collection = service_collection  # ← set once, here, under the guard
         self._singleton_instances: Dict[str, Any] = {}
 
         # Session management for transient services
