@@ -10,14 +10,10 @@ from servicegraph import ApplicationBuilder, ServiceProvider
 
 @pytest.fixture(autouse=True)
 def reset_service_provider():
-    """Reset the ServiceProvider state before each test."""
+    """Reset the ServiceProvider state before each test for isolation."""
     from servicegraph.service_provider import ServiceProvider
 
-    # Clear before test
-    if ServiceProvider._instance is not None:
-        ServiceProvider._instance.clear_all_instances()
-        ServiceProvider._instance._collection.clear()
-
+    ServiceProvider._reset_for_testing()
     yield
 
 

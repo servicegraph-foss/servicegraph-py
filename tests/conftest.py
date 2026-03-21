@@ -7,6 +7,14 @@ import tempfile
 import pytest
 
 from servicegraph import ApplicationBuilder, IConfiguration
+from servicegraph.service_provider import ServiceProvider
+
+
+@pytest.fixture(autouse=True)
+def reset_service_provider():
+    """Reset the ServiceProvider state before every test for isolation."""
+    ServiceProvider._reset_for_testing()
+    yield
 
 
 @pytest.fixture

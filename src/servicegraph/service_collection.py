@@ -204,6 +204,13 @@ class ServiceCollection:
         :param instance: The pre-configured instance
         :raises TypeError: If instance is not compatible with service_type
         """
+        # Validate that service_type is a real class before calling isinstance
+        if not inspect.isclass(service_type):
+            raise TypeError(
+                f"Invalid registration in add_instance(): "
+                f"'{service_type}' is not a valid class or interface. "
+                f"Only concrete classes and ABC interfaces are supported as service types."
+            )
         # Validate that the instance is compatible with the service type
         if not isinstance(instance, service_type):
             raise TypeError(

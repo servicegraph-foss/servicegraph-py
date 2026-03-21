@@ -1,4 +1,5 @@
 import atexit
+import threading
 from datetime import datetime, timedelta, timezone
 from threading import RLock
 from typing import Any, Dict, List, Optional, cast
@@ -24,11 +25,14 @@ class ScopedServiceContextManager:
     """Context manager wrapper for scoped services that enforces proper usage."""
 
     def __init__(
-        self, service_instance: Any, session_id: str, provider: "ServiceProvider"
+        self,
+        service_instance: Any,
+        scoped_deps: Optional[List[Any]] = None,
     ) -> None:
         self._service_instance = service_instance
-        self._session_id = session_id
-        self._provider = provider
+        # Scoped dependencies injected into this service, in creation order.
+        # Disposed in reverse order on __exit__ so consumers go before their deps.
+        self._scoped_deps: List[Any] = scoped_deps or []
         self._entered = False
         self._exited = False
 
@@ -40,49 +44,24 @@ class ScopedServiceContextManager:
 
     def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         self._exited = True
-        # Dispose of the scoped service instance itself
-        if hasattr(self._service_instance, "dispose"):
-            try:
-                self._service_instance.dispose()
-            except Exception as e:
-                print(
-                    f"Error disposing scoped service {type(self._service_instance).__name__}: {e}"
-                )
-        elif hasattr(self._service_instance, "close"):
-            try:
-                self._service_instance.close()
-            except Exception as e:
-                print(
-                    f"Error closing scoped service {type(self._service_instance).__name__}: {e}"
-                )
+        # Dispose the root service first
+        self._dispose_instance(self._service_instance)
+        # Then dispose injected scoped dependencies in reverse creation order
+        # (outer/consumer deps before the inner deps they rely on)
+        for dep in reversed(self._scoped_deps):
+            self._dispose_instance(dep)
 
-        # Dispose all scoped dependencies that were created within this scope
-        if self._session_id in self._provider._scoped_instances:
-            scoped_deps = self._provider._scoped_instances[self._session_id]
-            for scoped_dep in scoped_deps:
-                if (
-                    scoped_dep is not self._service_instance
-                ):  # Don't double-dispose the main instance
-                    if hasattr(scoped_dep, "dispose"):
-                        try:
-                            scoped_dep.dispose()
-                        except Exception as e:
-                            print(
-                                f"Error disposing scoped dependency {type(scoped_dep).__name__}: {e}"
-                            )
-                    elif hasattr(scoped_dep, "close"):
-                        try:
-                            scoped_dep.close()
-                        except Exception as e:
-                            print(
-                                f"Error closing scoped dependency {type(scoped_dep).__name__}: {e}"
-                            )
-            # Clean up the tracking list
-            del self._provider._scoped_instances[self._session_id]
-
-        # Note: We do NOT dispose the session here. The session_id was used to get
-        # consistent transient instances during service creation, but the session
-        # itself should persist and be managed separately by the caller.
+    def _dispose_instance(self, instance: Any) -> None:
+        if hasattr(instance, "dispose"):
+            try:
+                instance.dispose()
+            except Exception as e:
+                print(f"Error disposing {type(instance).__name__}: {e}")
+        elif hasattr(instance, "close"):
+            try:
+                instance.close()
+            except Exception as e:
+                print(f"Error closing {type(instance).__name__}: {e}")
 
     def __getattr__(self, name: str) -> Any:
         # Prevent direct access to service methods without context manager
@@ -116,10 +95,14 @@ class ServiceProvider:
         if hasattr(self, "_initialized") and self._initialized:
             if service_collection is not None:
                 raise RuntimeError(
-                    "ServiceProvider has already been built. ..."
+                    "ServiceProvider has already been built. A second call to build() with a "
+                    "new ServiceCollection is not allowed — singleton instances already cached "
+                    "from the first build would be stale against the new registrations.\n"
+                    "If you need to reset the provider between tests, call "
+                    "ServiceProvider._reset_for_testing()."
                 )
             return
-    
+
         # First-time initialization
         self._collection = service_collection  # ← set once, here, under the guard
         self._singleton_instances: Dict[str, Any] = {}
@@ -131,18 +114,7 @@ class ServiceProvider:
         self._instance_lock = RLock()
 
         # Thread-local storage for active session context during scoped service creation
-        import threading
-
         self._active_session_context = threading.local()
-
-        # Track scoped instances created within a scope for proper disposal
-        self._scoped_instances: Dict[str, List[Any]] = (
-            {}
-        )  # session_id -> list of scoped instances
-
-        # Register cleanup for singletons when process exits (Azure Functions worker recycling)
-        atexit.register(self._cleanup_singletons)
-
         self._initialized: bool = True
 
     def get_service(self, service_type: type[T], session_id: Optional[str] = None) -> T:
@@ -280,15 +252,19 @@ class ServiceProvider:
         :param session_id: The session ID to dispose
         :return: True if session existed and was disposed, False if session didn't exist
         """
+        # Remove state under the lock, then dispose outside it so that user-defined
+        # close()/dispose() methods cannot cause a deadlock by trying to acquire
+        # _instance_lock from a concurrent thread.
         with self._instance_lock:
-            if session_id in self._sessions:
-                session_services = self._sessions[session_id]
-                for service in session_services.values():
-                    self._dispose_service(service)
-                del self._sessions[session_id]
-                del self._session_timestamps[session_id]
-                return True
-            return False
+            if session_id not in self._sessions:
+                return False
+            services_to_dispose = list(self._sessions[session_id].values())
+            del self._sessions[session_id]
+            del self._session_timestamps[session_id]
+
+        for service in services_to_dispose:
+            self._dispose_service(service)
+        return True
 
     def get_session_info(self, session_id: str) -> Optional[Dict[str, Any]]:
         """Get information about a specific session."""
@@ -416,9 +392,19 @@ class ServiceProvider:
         """
         Clear all active sessions and their transient service instances.
         """
+        # Collect all services and clear state under the lock, then dispose outside
+        # to avoid holding _instance_lock during user-defined close()/dispose().
         with self._instance_lock:
-            for session_id in list(self._sessions.keys()):
-                self.dispose_session(session_id)
+            all_services = [
+                service
+                for session in self._sessions.values()
+                for service in session.values()
+            ]
+            self._sessions.clear()
+            self._session_timestamps.clear()
+
+        for service in all_services:
+            self._dispose_service(service)
 
     def clear_all_instances(self) -> None:
         """
@@ -427,6 +413,33 @@ class ServiceProvider:
         """
         self.clear_singleton_instances()
         self.clear_all_sessions()
+
+    @classmethod
+    def _reset_for_testing(cls) -> None:
+        """
+        Soft-reset the singleton ServiceProvider for test isolation.
+
+        Clears all cached singleton instances, sessions, and service registrations,
+        then marks the provider as uninitialized so the next build() call
+        re-initializes it in-place.  The singleton Python object is preserved.
+
+        NOT for production use.
+        """
+        with cls._lock:
+            if cls._instance is not None:
+                inst = cls._instance
+                try:
+                    inst._cleanup_singletons()
+                    inst.clear_all_sessions()
+                except Exception:
+                    pass
+                inst._singleton_instances = {}
+                inst._sessions = {}
+                inst._session_timestamps = {}
+                if inst._collection is not None:
+                    inst._collection.clear()
+                inst._initialized = False
+            # _instance is intentionally preserved — singleton identity is retained
 
     def remove_service(
         self, service_type: type[Any], name: Optional[str] = None
@@ -573,54 +586,46 @@ class ServiceProvider:
             return self._singleton_instances[registration.registration_key]
 
         elif registration.lifetime == ServiceLifetime.SCOPED:
-            # For scoped services, establish session context and create instance
-            # Generate a session_id if not provided (only for direct resolution)
-            if session_id is None and not is_dependency:
-                import uuid
-
-                session_id = f"scoped_{uuid.uuid4().hex[:8]}"
-
-            # If this is a dependency injection, get the active session from context
-            if is_dependency:
-                active_session = getattr(
-                    self._active_session_context, "session_id", None
-                )
-                if active_session:
-                    session_id = active_session
-                else:
-                    # This shouldn't happen in normal usage, but fallback to creating a session
-                    import uuid
-
-                    session_id = f"scoped_{uuid.uuid4().hex[:8]}"
-
-            # Initialize tracking list for this session if needed
-            assert (
-                session_id is not None
-            ), "Session ID must be provided for scoped services"
-            if session_id not in self._scoped_instances:
-                self._scoped_instances[session_id] = []
-
-            # Set the active session context so that any transient/scoped dependencies
-            # will use this session_id
+            # Propagate active session context so transient dependencies created
+            # during factory execution resolve consistently within the same session.
             prev_session = getattr(self._active_session_context, "session_id", None)
-            self._active_session_context.session_id = session_id
+            effective_session = session_id or prev_session
+            self._active_session_context.session_id = effective_session
 
             try:
-                instance = registration.factory(self)
-
-                # Track this scoped instance for disposal
-                self._scoped_instances[session_id].append(instance)
-
-                # Only wrap in context manager if this is a direct resolution,
-                # not a dependency injection
                 if is_dependency:
-                    # Return raw instance for dependency injection
+                    # Being injected into another service: return the raw instance.
+                    # Only scoped instances are tracked in the collector — the TRANSIENT
+                    # and SINGLETON branches never touch scoped_dep_stack, so neither
+                    # longer-lived singletons nor already-transient instances are ever
+                    # auto-disposed when the outer scope exits.
+                    instance = registration.factory(self)
+                    dep_stack: Optional[List[List[Any]]] = getattr(
+                        self._active_session_context, "scoped_dep_stack", None
+                    )
+                    if dep_stack:
+                        dep_stack[-1].append(instance)
                     return instance
                 else:
-                    # Wrap in context manager for direct resolution
-                    return ScopedServiceContextManager(instance, session_id, self)
+                    # Direct resolution: push a fresh collector onto the thread-local
+                    # stack so every scoped dependency created during factory execution
+                    # is automatically captured and owned by this context manager.
+                    dep_stack = getattr(
+                        self._active_session_context, "scoped_dep_stack", None
+                    )
+                    if dep_stack is None:
+                        self._active_session_context.scoped_dep_stack = []
+                        dep_stack = self._active_session_context.scoped_dep_stack
+
+                    collector: List[Any] = []
+                    dep_stack.append(collector)
+                    try:
+                        instance = registration.factory(self)
+                    finally:
+                        dep_stack.pop()
+
+                    return ScopedServiceContextManager(instance, scoped_deps=collector)
             finally:
-                # Restore previous session context (for nested scopes)
                 self._active_session_context.session_id = prev_session
 
         else:
@@ -636,8 +641,10 @@ class ServiceProvider:
 
     def _get_or_create_session_service(self, registration: Any, session_id: str) -> Any:
         """Get or create a session-scoped transient service instance."""
+        # _cleanup_expired_sessions removes state under _instance_lock and returns
+        # the collected services; we dispose them AFTER releasing the lock.
         with self._instance_lock:
-            self._cleanup_expired_sessions()
+            expired_services = self._cleanup_expired_sessions()
 
             if session_id not in self._sessions:
                 self._sessions[session_id] = {}
@@ -653,10 +660,19 @@ class ServiceProvider:
             # Update timestamp
             self._session_timestamps[session_id] = datetime.now(timezone.utc)
 
-            return session_services[registration.registration_key]
+            instance = session_services[registration.registration_key]
 
-    def _cleanup_expired_sessions(self) -> None:
-        """Remove expired sessions."""
+        for service in expired_services:
+            self._dispose_service(service)
+
+        return instance
+
+    def _cleanup_expired_sessions(self) -> list:
+        """Remove expired sessions and return their services for disposal.
+
+        Must be called with _instance_lock held.  Returns the list of service
+        instances that the caller must dispose *outside* the lock.
+        """
         now = datetime.now(timezone.utc)
         expired_sessions = [
             session_id
@@ -664,8 +680,13 @@ class ServiceProvider:
             if now - timestamp > self._session_timeout
         ]
 
+        services_to_dispose: list = []
         for session_id in expired_sessions:
-            self.dispose_session(session_id)
+            services_to_dispose.extend(self._sessions[session_id].values())
+            del self._sessions[session_id]
+            del self._session_timestamps[session_id]
+
+        return services_to_dispose
 
     def _dispose_service(self, service: Any) -> None:
         """Dispose a single service instance."""

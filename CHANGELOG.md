@@ -5,6 +5,16 @@ All notable changes to the servicegraph project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.4] - 2026-03-20
+
+### Fixed
+- **Session disposal deadlock** - `dispose_session`, `clear_all_sessions`, and the internal `_cleanup_expired_sessions` path no longer hold `_instance_lock` while invoking user-defined `close()`/`dispose()` methods. Previously, any concurrent thread that tried to acquire a session-aware service during a slow cleanup would block for the full duration of the user's cleanup code — a potential deadlock if the cleanup code itself needed to interact with another thread that was waiting on the same lock. State is now removed atomically under the lock and then services are disposed after the lock is released.
+- **`add_instance` type guard** - Passing a class (rather than an instance) to `add_instance` now raises a clear `TypeError` immediately instead of silently registering the class itself as the instance, which would cause confusing failures at resolution time.
+
+### Added
+- **Scoped dependency auto-disposal** - The framework now automatically tracks and disposes all scoped dependencies when the parent scope exits. Previously, developers had to manually call `close()` on each dependency in the right order. Now, exiting the `with` block disposes the root scoped service and all of its scoped dependencies in reverse creation order — no boilerplate required.
+- **`ServiceProvider._reset_for_testing()`** - New method for test isolation when using the global singleton pattern. Unlike `clear_all_instances()`, this soft-reset preserves the singleton object identity while clearing all cached state and allowing the provider to be re-initialized. Useful for test suites that share a single `ServiceProvider` instance but need a clean slate between tests.
+
 ## [0.1.3] - 2025-12-16
 
 ### Fixed

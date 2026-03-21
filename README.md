@@ -19,7 +19,7 @@ pip install servicegraph
 - **Python 3.9+** (Python 3.8 is not supported due to syntax compatibility issues)
 - No external runtime dependencies (except `typing-extensions` for Python < 3.10)
 
-> **⚠️ IMPORTANT:** Version 0.1.0 is deprecated and will not work correctly. Please use version 0.1.1 or later.
+> **⚠️ IMPORTANT:** Version 0.1.0 is deprecated and will not work correctly. Please use version 0.1.4 or later.
 
 ## Quick Start
 
@@ -237,7 +237,7 @@ provider.dispose_session(session_id)
 - **Existing session**: If the session exists, the same service instance is returned
 - **Per-service tracking**: Each service type gets its own instance within a session
 **Client considerations**:
-- Use `dispose_session(session_id)` to clean up session-scoped instances
+- Use `dispose_session(session_id)` to clean up session-scoped instances. This is safe to call from any thread at any time — the lock is released before `close()`/`dispose()` runs on your services, so slow cleanup code cannot block other threads from resolving services.
 - Sessions automatically expire after 30 minutes of inactivity
 - Transient services in long-running operations should be explicitly disposed if they implement `IDisposable` or have cleanup requirements.
 
@@ -336,7 +336,7 @@ with provider.get_service(IDatabaseConnection) as db:
 **Key Point**: The `session_id` parameter is **optional**. Use it only when you need consistent transient instances across multiple scoped service resolutions within the same logical operation (like a web request or function invocation).
 
 **Behind the scenes**: servicegraph wraps scoped services in a `ScopedServiceContextManager` that enforces proper usage for direct resolution while gracefully unwrapping for dependency injection.
-**Disposal behavior**: The context manager automatically calls `dispose()` or `close()` methods if your service implements them, but scoped services don't need to implement these methods—the `with` pattern works with any service. All scoped dependencies created during a scope are tracked and disposed together.
+**Disposal behavior**: The context manager automatically calls `dispose()` or `close()` methods if your service implements them, but scoped services don't need to implement these methods—the `with` pattern works with any service. All scoped dependencies created during a scope are tracked and disposed automatically in reverse creation order when the parent scope exits — no manual cleanup boilerplate required.
 
 ### Lifecycle Dependency Rules
 
