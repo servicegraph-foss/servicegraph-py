@@ -1,6 +1,6 @@
 import inspect
 import logging
-from typing import TYPE_CHECKING, Any, Callable, Dict, Optional
+from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, Optional
 
 from .dependency_injection_utils import extract_named_dependencies, get_base_type
 from .service_lifetime import ServiceLifetime
@@ -18,6 +18,32 @@ class ServiceCollection:
     def __init__(self) -> None:
         # Single dictionary to hold all service registrations
         self._registrations: Dict[str, ServiceRegistration] = {}
+
+    def has_registration(self, registration_key: str) -> bool:
+        """Check if a registration exists for the given key."""
+        return registration_key in self._registrations
+
+    def get_registration(self, registration_key: str) -> ServiceRegistration:
+        """Get a registration by key; raises KeyError if missing."""
+        return self._registrations[registration_key]
+
+    def try_get_registration(
+        self, registration_key: str
+    ) -> Optional[ServiceRegistration]:
+        """Get a registration by key or return None if missing."""
+        return self._registrations.get(registration_key)
+
+    def registration_keys(self) -> Iterable[str]:
+        """Return an iterable of registration keys."""
+        return self._registrations.keys()
+
+    def iter_registrations(self) -> Iterable[ServiceRegistration]:
+        """Iterate over registrations."""
+        return self._registrations.values()
+
+    def iter_registration_items(self) -> Iterable[tuple[str, ServiceRegistration]]:
+        """Iterate over (key, registration) pairs."""
+        return self._registrations.items()
 
     def _validate_implementation_type(
         self,
@@ -204,6 +230,13 @@ class ServiceCollection:
         :param instance: The pre-configured instance
         :raises TypeError: If instance is not compatible with service_type
         """
+        # Validate that service_type is a real class before calling isinstance
+        if not inspect.isclass(service_type):
+            raise TypeError(
+                f"Invalid registration in add_instance(): "
+                f"'{service_type}' is not a valid class or interface. "
+                f"Only concrete classes and ABC interfaces are supported as service types."
+            )
         # Validate that the instance is compatible with the service type
         if not isinstance(instance, service_type):
             raise TypeError(
@@ -244,7 +277,6 @@ class ServiceCollection:
         :param service_type: The service type to remove
         :return: Number of registrations removed
         """
-        service_key = self._get_service_key(service_type)
         keys_to_remove = [
             key
             for key, reg in self._registrations.items()
@@ -505,19 +537,20 @@ class ServiceCollection:
                     if param_name in named_deps:
                         service_name = named_deps[param_name]
                         # Mark as dependency injection (is_dependency=True)
+                        registration_key = (
+                            f"{provider._get_service_key(base_type)}#{service_name}"
+                        )
                         kwargs[param_name] = provider._get_or_create_instance(
-                            provider._collection._registrations[
-                                f"{provider._get_service_key(base_type)}#{service_name}"
-                            ],
+                            provider.collection.get_registration(registration_key),
                             session_id=None,
                             is_dependency=True,
                         )
                     else:
                         # Regular service resolution - mark as dependency injection
                         registration_key = provider._get_service_key(base_type)
-                        if registration_key in provider._collection._registrations:
+                        if provider.collection.has_registration(registration_key):
                             kwargs[param_name] = provider._get_or_create_instance(
-                                provider._collection._registrations[registration_key],
+                                provider.collection.get_registration(registration_key),
                                 session_id=None,
                                 is_dependency=True,
                             )

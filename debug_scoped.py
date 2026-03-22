@@ -1,7 +1,8 @@
 """Debug script to test scoped service behavior."""
 
-from servicegraph import ApplicationBuilder
 from abc import ABC, abstractmethod
+
+from servicegraph import ApplicationBuilder
 
 
 class IConnection(ABC):
@@ -12,21 +13,23 @@ class IConnection(ABC):
 
 class Connection(IConnection):
     closed_count = 0
-    
+
     def __init__(self):
         self.instance_id = id(self)
         print(f"Creating Connection {self.instance_id}")
-    
+
     def close(self):
         Connection.closed_count += 1
-        print(f"Closing Connection {self.instance_id}, total closed: {Connection.closed_count}")
+        print(
+            f"Closing Connection {self.instance_id}, total closed: {Connection.closed_count}"
+        )
 
 
 class Service:
     def __init__(self, conn: IConnection):
         self.conn = conn
         print(f"Creating Service with Connection {conn.instance_id}")
-    
+
     def do_work(self):
         return "work done"
 

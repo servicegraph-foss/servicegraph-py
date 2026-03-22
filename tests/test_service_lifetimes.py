@@ -2,6 +2,7 @@
 
 import threading
 import time
+from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
 import pytest
@@ -15,25 +16,11 @@ from servicegraph import ApplicationBuilder, ServiceLifetime, ServiceProvider
 
 @pytest.fixture(autouse=True)
 def reset_service_provider():
-    """
-    Reset the ServiceProvider state before each test.
-    Note: ServiceProvider is a singleton by design - only one exists
-    per runtime. We clear its state rather than trying to recreate it.
-    """
+    """Reset the ServiceProvider state before each test for isolation."""
     from servicegraph.service_provider import ServiceProvider
 
-    # Clear before test
-    if ServiceProvider._instance is not None:
-        # Clear all cached instances
-        ServiceProvider._instance.clear_all_instances()
-        # Clear all service registrations
-        ServiceProvider._instance._collection.clear()
-
+    ServiceProvider._reset_for_testing()
     yield
-
-    # Don't clear after - the next test will clear before it runs
-    # Clearing after would wipe out the next test's collection since
-    # ServiceProvider always updates its _collection reference
 
 
 # Test service classes - defined at module level so ServiceProvider can access them
@@ -276,6 +263,7 @@ class TestServiceLifetimeManagement:
 
         # Reset and test transient factory
         call_count = 0
+        ServiceProvider._reset_for_testing()
         builder = ApplicationBuilder()
         builder.services.add_factory(str, create_service, ServiceLifetime.TRANSIENT)
 
@@ -361,6 +349,262 @@ class TestMemoryManagement:
         # Service should still be accessible via session
         service_again = provider.get_service(WeaklyReferencedService, session_id)
         assert id(service_again) == service_id  # Same instance
+
+
+class TestDisposeSessionConcurrency:
+    """
+    Tests that dispose_session and its internal callers do not hold _instance_lock
+    while executing user-defined close()/dispose() methods.
+
+    The original bug:
+      _get_or_create_session_service held _instance_lock, then called
+      _cleanup_expired_sessions → dispose_session → _dispose_service → user close().
+      Any concurrent thread that tried to acquire _instance_lock blocked for the full
+      duration of close().  If close() in turn waited on that second thread, the
+      result was a classic deadlock.
+
+      clear_all_sessions() acquired _instance_lock and then called dispose_session,
+      which re-acquired it (fine with RLock but still held the lock during close()).
+
+    Fix: _dispose_service is called *outside* the lock in all paths.
+
+    Lock-probing design
+    -------------------
+    Python's RLock allows the *owning thread* to non-blockingly re-acquire itself,
+    so the probe must run from a *different* thread.  Each test does:
+
+      1. Service.close() signals a dedicated probe thread via an Event and then
+         waits for that thread to finish before returning.
+      2. The probe thread calls _instance_lock.acquire(blocking=False) and records
+         whether the call succeeded.
+         * False → lock was held by another thread (the dispose/cleanup frame) → BUG
+         * True  → lock was free → correct; probe releases it immediately
+      3. After dispose returns, the test asserts the recorded value is False (free).
+    """
+
+    # ------------------------------------------------------------------
+    # Helpers
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _make_probing_service(provider_ref, lock_held_results):
+        """
+        Return a class whose close() synchronises with a probe thread to test
+        whether _instance_lock is held at the time close() is called.
+        """
+        start_probe = threading.Event()
+        probe_done = threading.Event()
+
+        class _ProbingService:
+            # Keep events as class attributes so the spawned thread can see them.
+            _start_probe = start_probe
+            _probe_done = probe_done
+
+            def close(self):
+                # Wake the probe thread, then wait for it to record the result.
+                self._start_probe.set()
+                self._probe_done.wait(timeout=2.0)
+
+        def probe():
+            start_probe.wait(timeout=2.0)
+            p = provider_ref[0]
+            acquired = p._instance_lock.acquire(blocking=False)
+            if acquired:
+                p._instance_lock.release()
+            # True  → acquire succeeded → lock was FREE at close() time (good)
+            # False → acquire failed   → lock was HELD at close() time (bad)
+            lock_held_results.append(not acquired)
+            probe_done.set()
+
+        return _ProbingService, threading.Thread(target=probe, daemon=True)
+
+    # ------------------------------------------------------------------
+    # Tests
+    # ------------------------------------------------------------------
+
+    def test_dispose_session_does_not_hold_lock_during_close(self):
+        """dispose_session must NOT hold _instance_lock while calling service.close()."""
+        lock_held: list = []
+        provider_ref: list = []
+
+        ProbingService, probe_thread = self._make_probing_service(
+            provider_ref, lock_held
+        )
+        probe_thread.start()
+
+        builder = ApplicationBuilder()
+        builder.services.add_transient(ProbingService)
+        provider = builder.build()
+        provider_ref.append(provider)
+
+        provider.get_service(ProbingService, "probe_session")
+        provider.dispose_session("probe_session")
+        probe_thread.join(timeout=5.0)
+
+        assert (
+            not probe_thread.is_alive()
+        ), "Probe thread timed out — possible deadlock."
+        assert lock_held == [False], (
+            "dispose_session held _instance_lock while calling service.close(). "
+            "Any concurrent session-aware call will block for the full duration of "
+            "the user's close() method — a potential deadlock."
+        )
+
+    def test_cleanup_expired_sessions_does_not_hold_lock_during_close(self):
+        """
+        _get_or_create_session_service → _cleanup_expired_sessions → dispose_session
+        must NOT hold _instance_lock during service.close().
+
+        We back-date a session timestamp to force it to appear expired, then trigger
+        a new get_service call so _cleanup_expired_sessions fires while the
+        _get_or_create_session_service frame already holds _instance_lock.
+        """
+        lock_held: list = []
+        provider_ref: list = []
+
+        ProbingService, probe_thread = self._make_probing_service(
+            provider_ref, lock_held
+        )
+        probe_thread.start()
+
+        class TriggerService:
+            pass
+
+        builder = ApplicationBuilder()
+        builder.services.add_transient(ProbingService)
+        builder.services.add_transient(TriggerService)
+        provider = builder.build()
+        provider_ref.append(provider)
+
+        provider.get_service(ProbingService, "expiry_session")
+
+        # Back-date so _cleanup_expired_sessions picks this session up.
+        with provider._instance_lock:
+            provider._session_timestamps["expiry_session"] = (
+                datetime.now(timezone.utc)
+                - provider._session_timeout
+                - timedelta(seconds=1)
+            )
+
+        # A new get_service call triggers _cleanup_expired_sessions internally.
+        provider.get_service(TriggerService, "trigger_session")
+        probe_thread.join(timeout=5.0)
+
+        assert (
+            not probe_thread.is_alive()
+        ), "Probe thread timed out — possible deadlock."
+        assert lock_held == [False], (
+            "_cleanup_expired_sessions held _instance_lock while calling service.close(). "
+            "Any concurrent session-aware call will stall for the full duration of "
+            "the user's cleanup code."
+        )
+
+    def test_clear_all_sessions_does_not_hold_lock_during_close(self):
+        """clear_all_sessions must NOT hold _instance_lock while calling service.close()."""
+        lock_held: list = []
+        provider_ref: list = []
+
+        # We need 3 independent probe threads (one per session).
+        start_probes = [threading.Event() for _ in range(3)]
+        probe_dones = [threading.Event() for _ in range(3)]
+        call_index = [0]  # which close() invocation is this?
+
+        class MultiSessionProbingService:
+            def close(self):
+                idx = call_index[0]
+                call_index[0] += 1
+                start_probes[idx].set()
+                probe_dones[idx].wait(timeout=2.0)
+
+        def make_probe(idx):
+            def probe():
+                start_probes[idx].wait(timeout=2.0)
+                p = provider_ref[0]
+                acquired = p._instance_lock.acquire(blocking=False)
+                if acquired:
+                    p._instance_lock.release()
+                lock_held.append(not acquired)
+                probe_dones[idx].set()
+
+            return threading.Thread(target=probe, daemon=True)
+
+        probe_threads = [make_probe(i) for i in range(3)]
+        for pt in probe_threads:
+            pt.start()
+
+        builder = ApplicationBuilder()
+        builder.services.add_transient(MultiSessionProbingService)
+        provider = builder.build()
+        provider_ref.append(provider)
+
+        for i in range(3):
+            provider.get_service(MultiSessionProbingService, f"sess_{i}")
+
+        provider.clear_all_sessions()
+        for pt in probe_threads:
+            pt.join(timeout=5.0)
+
+        assert all(
+            not pt.is_alive() for pt in probe_threads
+        ), "At least one probe thread timed out — possible deadlock."
+        assert provider.get_active_session_count() == 0
+        assert len(lock_held) == 3
+        assert all(not held for held in lock_held), (
+            f"clear_all_sessions held _instance_lock during "
+            f"{sum(lock_held)} close() call(s)."
+        )
+
+    def test_concurrent_dispose_and_get_service_complete_without_deadlock(self):
+        """
+        Multiple threads disposing sessions while others resolve session-scoped
+        services must all complete within the timeout — no deadlock, no starvation.
+        """
+        NUM_SESSIONS = 20
+        errors: list = []
+
+        class SessionService:
+            pass
+
+        builder = ApplicationBuilder()
+        builder.services.add_transient(SessionService)
+        provider = builder.build()
+
+        for i in range(NUM_SESSIONS):
+            provider.get_service(SessionService, f"concurrent_{i}")
+
+        dispose_done = threading.Event()
+
+        def dispose_all():
+            try:
+                for i in range(NUM_SESSIONS):
+                    provider.dispose_session(f"concurrent_{i}")
+            except Exception as e:
+                errors.append(e)
+            finally:
+                dispose_done.set()
+
+        def resolve_continuously():
+            deadline = time.time() + 0.5
+            while time.time() < deadline and not dispose_done.is_set():
+                try:
+                    provider.get_service(SessionService, "live_session")
+                except Exception as e:
+                    errors.append(e)
+                    break
+
+        threads = [threading.Thread(target=dispose_all, daemon=True)]
+        threads += [
+            threading.Thread(target=resolve_continuously, daemon=True) for _ in range(4)
+        ]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join(timeout=5.0)
+
+        assert all(
+            not t.is_alive() for t in threads
+        ), "One or more threads are still alive — likely a deadlock."
+        assert not errors, f"Thread errors: {errors}"
 
 
 if __name__ == "__main__":

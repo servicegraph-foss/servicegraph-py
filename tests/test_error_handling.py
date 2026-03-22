@@ -14,25 +14,11 @@ from servicegraph import ApplicationBuilder, ServiceProvider
 
 @pytest.fixture(autouse=True)
 def reset_service_provider():
-    """
-    Reset the ServiceProvider state before each test.
-    Note: ServiceProvider is a singleton by design - only one exists
-    per runtime. We clear its state rather than trying to recreate it.
-    """
+    """Reset the ServiceProvider state before each test for isolation."""
     from servicegraph.service_provider import ServiceProvider
 
-    # Clear before test
-    if ServiceProvider._instance is not None:
-        # Clear all cached instances
-        ServiceProvider._instance.clear_all_instances()
-        # Clear all service registrations
-        ServiceProvider._instance._collection.clear()
-
+    ServiceProvider._reset_for_testing()
     yield
-
-    # Don't clear after - the next test will clear before it runs
-    # Clearing after would wipe out the next test's collection since
-    # ServiceProvider always updates its _collection reference
 
 
 # ========================
@@ -97,7 +83,7 @@ class TransientService:
 
 # Classes for type annotation test
 class ServiceWithBadAnnotation:
-    def __init__(self, param: "not_a_real_type"):
+    def __init__(self, param: "not_a_real_type"):  # noqa: F821
         self.param = param
 
 

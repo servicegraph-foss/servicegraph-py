@@ -18,25 +18,11 @@ from servicegraph.service_lifetime import ServiceLifetime
 
 @pytest.fixture(autouse=True)
 def reset_service_provider():
-    """
-    Reset the ServiceProvider state before each test.
-    Note: ServiceProvider is a singleton by design - only one exists
-    per runtime. We clear its state rather than trying to recreate it.
-    """
+    """Reset the ServiceProvider state before each test for isolation."""
     from servicegraph.service_provider import ServiceProvider
 
-    # Clear before test
-    if ServiceProvider._instance is not None:
-        # Clear all cached instances
-        ServiceProvider._instance.clear_all_instances()
-        # Clear all service registrations
-        ServiceProvider._instance._collection.clear()
-
+    ServiceProvider._reset_for_testing()
     yield
-
-    # Don't clear after - the next test will clear before it runs
-    # Clearing after would wipe out the next test's collection since
-    # ServiceProvider always updates its _collection reference
 
 
 # ========================
@@ -386,28 +372,23 @@ class TestAzureFunctionsIntegration:
     def test_azure_function_stateless_optimization(self):
         """Test servicegraph optimization for stateless Azure Functions."""
 
-        # Create multiple app instances to simulate Azure Functions scaling
-        def create_optimized_app():
-            builder = ApplicationBuilder()
+        # Build the singleton provider once (as it would be in a real Azure Function app)
+        builder = ApplicationBuilder()
+        builder.services.add_named(
+            "azure_expensive_service",
+            ExpensiveServiceAzure,
+            lifetime=ServiceLifetime.SINGLETON,
+        )
+        builder.services.add_named(
+            "azure_request_service",
+            RequestServiceAzure,
+            lifetime=ServiceLifetime.TRANSIENT,
+        )
+        app_provider = builder.build()
 
-            builder.services.add_named(
-                "azure_expensive_service",
-                ExpensiveServiceAzure,
-                lifetime=ServiceLifetime.SINGLETON,
-            )
-            builder.services.add_named(
-                "azure_request_service",
-                RequestServiceAzure,
-                lifetime=ServiceLifetime.TRANSIENT,
-            )
-
-            return builder.build()
-
-        # Simulate multiple Azure Function instances
-        app_instances = [create_optimized_app() for _ in range(3)]
-
-        # Test that expensive services are reused within each instance
-        for i, app_provider in enumerate(app_instances):
+        # Simulate multiple Azure Function invocations on the same provider
+        expensive_service_ids = []
+        for i in range(3):
             request_service1 = app_provider.get_named_service(
                 RequestServiceAzure, "azure_request_service"
             )
@@ -418,11 +399,15 @@ class TestAzureFunctionsIntegration:
             # Request services should be different instances (transient)
             assert request_service1.instance_id != request_service2.instance_id
 
-            # But they should share the same expensive service (singleton)
+            # The singleton expensive service should be shared across all calls
+            expensive_service_ids.append(request_service1.expensive_service.instance_id)
             assert (
                 request_service1.expensive_service.instance_id
                 == request_service2.expensive_service.instance_id
             )
+
+        # All invocations shared the same singleton expensive service instance
+        assert len(set(expensive_service_ids)) == 1
 
     def test_azure_function_cold_start_optimization(self):
         """Test servicegraph behavior during Azure Function cold starts."""
