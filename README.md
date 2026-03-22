@@ -965,6 +965,33 @@ def test_document_processing():
     assert result.status == "success"
 ```
 
+### Introspection and Diagnostics
+
+servicegraph keeps registration details internal but exposes a small, explicit API for
+inspection when you need it (debugging, diagnostics, tooling):
+
+```python
+provider = builder.build()
+
+# Access the underlying ServiceCollection
+collection = provider.collection
+
+# Check or fetch a registration by key
+key = "INotificationService"
+if collection.has_registration(key):
+    registration = collection.get_registration(key)
+
+# Safe lookup
+maybe_registration = collection.try_get_registration(key)
+
+# Enumerate registrations
+for key in collection.registration_keys():
+    print(key)
+
+for registration in collection.iter_registrations():
+    print(registration.service_type, registration.lifetime)
+```
+
 ## Platform Integrations
 
 ### Azure Functions
