@@ -136,9 +136,9 @@ class ServiceProvider:
         # Directly construct the registration key
         registration_key = self._get_service_key(service_type)
 
-        if not self._collection.has_registration(registration_key):
+        if not self.collection.has_registration(registration_key):
             # Provide helpful error message with suggestions
-            available_services = list(self._collection.registration_keys())
+            available_services = list(self.collection.registration_keys())
             similar_services = [
                 svc
                 for svc in available_services
@@ -172,7 +172,7 @@ class ServiceProvider:
 
             raise ServiceNotRegisteredException(error_msg)
 
-        registration = self._collection.get_registration(registration_key)
+        registration = self.collection.get_registration(registration_key)
         return cast(T, self._get_or_create_instance(registration, session_id))
 
     def get_named_service(
@@ -190,10 +190,10 @@ class ServiceProvider:
         # Directly construct the registration key for named services
         registration_key = f"{self._get_service_key(service_type)}#{name}"
 
-        if not self._collection.has_registration(registration_key):
+        if not self.collection.has_registration(registration_key):
             # Provide helpful error message with available named services
             available_names = []
-            for key, reg in self._collection.iter_registration_items():
+            for key, reg in self.collection.iter_registration_items():
                 if reg.service_type == service_type and reg.is_named:
                     available_names.append(reg.name)
 
@@ -218,7 +218,7 @@ class ServiceProvider:
             else:
                 # Check if the service type itself is registered (non-named)
                 base_key = self._get_service_key(service_type)
-                if self._collection.has_registration(base_key):
+                if self.collection.has_registration(base_key):
                     error_msg += f"\n\nNote: {service_type.__name__} is registered as a regular service (not named).\n"
                     error_msg += (
                         f"Use: provider.get_service({service_type.__name__}) instead."
@@ -228,7 +228,7 @@ class ServiceProvider:
 
             raise ServiceNotRegisteredException(error_msg)
 
-        registration = self._collection.get_registration(registration_key)
+        registration = self.collection.get_registration(registration_key)
         return cast(T, self._get_or_create_instance(registration, session_id))
 
     def get_all_named_services(
@@ -242,7 +242,7 @@ class ServiceProvider:
         :return: Dictionary mapping names to service instances
         """
         result: dict[str, T] = {}
-        for registration in self._collection.iter_registrations():
+        for registration in self.collection.iter_registrations():
             if registration.service_type == service_type and registration.is_named:
                 assert registration.name is not None
                 result[registration.name] = cast(
@@ -298,7 +298,7 @@ class ServiceProvider:
         """
         services = {}
 
-        for registration in self._collection.iter_registrations():
+        for registration in self.collection.iter_registrations():
             service_key = registration.registration_key
 
             # Determine if this is a factory-based registration
@@ -364,7 +364,7 @@ class ServiceProvider:
         return list(
             set(
                 reg.service_type.__name__
-                for reg in self._collection.iter_registrations()
+                for reg in self.collection.iter_registrations()
             )
         )
 
@@ -381,7 +381,7 @@ class ServiceProvider:
         else:
             registration_key = self._get_service_key(service_type)
 
-        return self._collection.has_registration(registration_key)
+        return self.collection.has_registration(registration_key)
 
     def clear_singleton_instances(self) -> None:
         """
@@ -464,7 +464,7 @@ class ServiceProvider:
             registration_key = self._get_service_key(service_type)
 
         # Remove from collection
-        removed = self._collection.remove(service_type, name)
+        removed = self.collection.remove(service_type, name)
 
         if removed:
             # Clear cached singleton instance if it exists
@@ -493,12 +493,12 @@ class ServiceProvider:
         # Get all keys for this service type before removing
         keys_to_clear = [
             key
-            for key, reg in self._collection.iter_registration_items()
+            for key, reg in self.collection.iter_registration_items()
             if reg.service_type == service_type
         ]
 
         # Remove from collection
-        count = self._collection.remove_all_by_type(service_type)
+        count = self.collection.remove_all_by_type(service_type)
 
         # Clear cached singleton instances
         with self._lock:
@@ -527,12 +527,12 @@ class ServiceProvider:
         # Get all keys for this implementation type before removing
         keys_to_clear = [
             key
-            for key, reg in self._collection.iter_registration_items()
+            for key, reg in self.collection.iter_registration_items()
             if reg.implementation == implementation
         ]
 
         # Remove from collection
-        count = self._collection.remove_all_by_implementation(implementation)
+        count = self.collection.remove_all_by_implementation(implementation)
 
         # Clear cached singleton instances
         with self._lock:
@@ -673,7 +673,7 @@ class ServiceProvider:
 
         return instance
 
-    def _cleanup_expired_sessions(self) -> list:
+    def _cleanup_expired_sessions(self) -> list[Any]:
         """Remove expired sessions and return their services for disposal.
 
         Must be called with _instance_lock held.  Returns the list of service
@@ -686,7 +686,7 @@ class ServiceProvider:
             if now - timestamp > self._session_timeout
         ]
 
-        services_to_dispose: list = []
+        services_to_dispose: list[Any] = []
         for session_id in expired_sessions:
             services_to_dispose.extend(self._sessions[session_id].values())
             del self._sessions[session_id]

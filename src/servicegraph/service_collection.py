@@ -541,16 +541,16 @@ class ServiceCollection:
                             f"{provider._get_service_key(base_type)}#{service_name}"
                         )
                         kwargs[param_name] = provider._get_or_create_instance(
-                            provider._collection.get_registration(registration_key),
+                            provider.collection.get_registration(registration_key),
                             session_id=None,
                             is_dependency=True,
                         )
                     else:
                         # Regular service resolution - mark as dependency injection
                         registration_key = provider._get_service_key(base_type)
-                        if provider._collection.has_registration(registration_key):
+                        if provider.collection.has_registration(registration_key):
                             kwargs[param_name] = provider._get_or_create_instance(
-                                provider._collection.get_registration(registration_key),
+                                provider.collection.get_registration(registration_key),
                                 session_id=None,
                                 is_dependency=True,
                             )
