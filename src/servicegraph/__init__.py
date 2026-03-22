@@ -5,7 +5,7 @@ This package provides a simple yet powerful dependency injection container
 with support for service lifetimes, configuration management, and type safety.
 """
 
-__version__ = "0.1.3"
+__version__ = "0.1.4"
 __author__ = "ServiceGraph Contributors"
 __license__ = "See LICENSE file"
 
