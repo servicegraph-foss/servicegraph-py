@@ -83,7 +83,7 @@ class TransientService:
 
 # Classes for type annotation test
 class ServiceWithBadAnnotation:
-    def __init__(self, param: "not_a_real_type"):
+    def __init__(self, param: "not_a_real_type"):  # noqa: F821
         self.param = param
 
 
