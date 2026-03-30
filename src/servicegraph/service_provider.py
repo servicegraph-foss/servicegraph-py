@@ -258,37 +258,58 @@ class ServiceProvider:
         :param session_id: The session ID to dispose
         :return: True if session existed and was disposed, False if session didn't exist
         """
+        expired_services = self._collect_expired_services()
+
         # Remove state under the lock, then dispose outside it so that user-defined
         # close()/dispose() methods cannot cause a deadlock by trying to acquire
         # _instance_lock from a concurrent thread.
         with self._instance_lock:
             if session_id not in self._sessions:
-                return False
-            services_to_dispose = list(self._sessions[session_id].values())
-            del self._sessions[session_id]
-            del self._session_timestamps[session_id]
+                session_existed = False
+                services_to_dispose: list[Any] = []
+            else:
+                session_existed = True
+                services_to_dispose = list(self._sessions[session_id].values())
+                del self._sessions[session_id]
+                del self._session_timestamps[session_id]
 
+        for service in expired_services:
+            self._dispose_service(service)
+        if not session_existed:
+            return False
         for service in services_to_dispose:
             self._dispose_service(service)
         return True
 
     def get_session_info(self, session_id: str) -> Optional[Dict[str, Any]]:
         """Get information about a specific session."""
+        expired_services = self._collect_expired_services()
         with self._instance_lock:
             if session_id not in self._sessions:
-                return None
+                session_info = None
+            else:
+                session_services = self._sessions[session_id]
+                session_info = {
+                    "session_id": session_id,
+                    "service_count": len(session_services),
+                    "created_at": self._session_timestamps[session_id].isoformat(),
+                    "services": list(session_services.keys()),
+                }
 
-            session_services = self._sessions[session_id]
-            return {
-                "session_id": session_id,
-                "service_count": len(session_services),
-                "created_at": self._session_timestamps[session_id].isoformat(),
-                "services": list(session_services.keys()),
-            }
+        for service in expired_services:
+            self._dispose_service(service)
+        return session_info
 
     def get_active_session_count(self) -> int:
         """Get the number of active sessions."""
-        return len(self._sessions)
+        expired_services = self._collect_expired_services()
+        with self._instance_lock:
+            count = len(self._sessions)
+
+        for service in expired_services:
+            self._dispose_service(service)
+
+        return count
 
     def get_all_services(self) -> Dict[str, Dict[str, Any]]:
         """
@@ -693,6 +714,11 @@ class ServiceProvider:
             del self._session_timestamps[session_id]
 
         return services_to_dispose
+
+    def _collect_expired_services(self) -> list[Any]:
+        """Collect services from expired sessions for disposal outside the lock."""
+        with self._instance_lock:
+            return self._cleanup_expired_sessions()
 
     def _dispose_service(self, service: Any) -> None:
         """Dispose a single service instance."""

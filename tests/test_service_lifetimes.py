@@ -306,6 +306,62 @@ class TestServiceLifetimeManagement:
 class TestMemoryManagement:
     """Test memory management and cleanup behaviors."""
 
+    def test_get_active_session_count_triggers_expired_cleanup(self):
+        """Expired sessions should be cleaned during count checks even without new session creation."""
+        closed_count = 0
+
+        class CloseTrackedService:
+            def close(self):
+                nonlocal closed_count
+                closed_count += 1
+
+        builder = ApplicationBuilder()
+        builder.services.add_transient(CloseTrackedService)
+        provider = builder.build()
+
+        provider.get_service(CloseTrackedService, "stale_session")
+
+        # Back-date so the session is expired before any new session is created.
+        with provider._instance_lock:
+            provider._session_timestamps["stale_session"] = (
+                datetime.now(timezone.utc)
+                - provider._session_timeout
+                - timedelta(seconds=1)
+            )
+
+        assert provider.get_active_session_count() == 0
+        assert provider.get_session_info("stale_session") is None
+        assert closed_count == 1
+
+    def test_dispose_session_triggers_expired_cleanup(self):
+        """Disposing one session should also clean unrelated expired sessions."""
+        closed_count = 0
+
+        class CloseTrackedService:
+            def close(self):
+                nonlocal closed_count
+                closed_count += 1
+
+        builder = ApplicationBuilder()
+        builder.services.add_transient(CloseTrackedService)
+        provider = builder.build()
+
+        provider.get_service(CloseTrackedService, "stale_session")
+        provider.get_service(CloseTrackedService, "live_session")
+
+        with provider._instance_lock:
+            provider._session_timestamps["stale_session"] = (
+                datetime.now(timezone.utc)
+                - provider._session_timeout
+                - timedelta(seconds=1)
+            )
+
+        assert provider.dispose_session("live_session") is True
+        assert provider.get_active_session_count() == 0
+        assert provider.get_session_info("stale_session") is None
+        assert provider.get_session_info("live_session") is None
+        assert closed_count == 2
+
     def test_session_cleanup_prevents_memory_leaks(self):
         """Test that session cleanup prevents memory accumulation."""
         builder = ApplicationBuilder()
