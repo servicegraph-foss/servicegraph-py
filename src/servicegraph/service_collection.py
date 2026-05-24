@@ -495,11 +495,6 @@ class ServiceCollection:
         for registration in self.iter_registrations():
             implementation = registration.implementation
 
-            # Skip non-class implementations and dynamic/built-in cases where
-            # constructor inspection is unavailable.
-            if not inspect.isclass(implementation):
-                continue
-
             try:
                 sig = inspect.signature(implementation.__init__)
             except (ValueError, TypeError):
