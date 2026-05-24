@@ -1,10 +1,12 @@
 """Core dependency injection functionality tests."""
 
 from abc import ABC, abstractmethod
+from typing import Annotated
 
 import pytest
 
 from servicegraph import ApplicationBuilder, ServiceProvider
+from servicegraph.dependency_injection_utils import Named
 from servicegraph.service_lifetime import ServiceLifetime
 
 # ========================
@@ -358,6 +360,58 @@ class TestNamedServices:
 
         assert default_service.get_message() == "Hello from TestService"
         assert named_service.get_message() == "Special service"
+
+    def test_plain_string_annotation_resolves_named_service(self):
+        """Annotated[IFoo, "name"] is accepted as shorthand for Annotated[IFoo, Named("name")]."""
+
+        class IFoo(ABC):
+            @abstractmethod
+            def value(self) -> str: ...
+
+        class FooPrimary(IFoo):
+            def value(self) -> str:
+                return "primary"
+
+        class Consumer:
+            def __init__(self, dep: Annotated[IFoo, "primary"]):
+                self.dep = dep
+
+        builder = ApplicationBuilder()
+        builder.services.add_named("primary", IFoo, FooPrimary)
+        builder.services.add_singleton(Consumer, Consumer)
+        provider = builder.build()
+
+        consumer = provider.get_service(Consumer)
+        assert consumer.dep.value() == "primary"
+
+    def test_plain_string_annotation_equivalent_to_named_helper(self):
+        """Plain-string shorthand produces the same result as Named()."""
+
+        class IBar(ABC):
+            @abstractmethod
+            def label(self) -> str: ...
+
+        class BarImpl(IBar):
+            def label(self) -> str:
+                return "bar"
+
+        class ConsumerWithNamed:
+            def __init__(self, dep: Annotated[IBar, Named("bar")]):
+                self.dep = dep
+
+        class ConsumerWithString:
+            def __init__(self, dep: Annotated[IBar, "bar"]):
+                self.dep = dep
+
+        builder = ApplicationBuilder()
+        builder.services.add_named("bar", IBar, BarImpl)
+        builder.services.add_singleton(ConsumerWithNamed, ConsumerWithNamed)
+        builder.services.add_singleton(ConsumerWithString, ConsumerWithString)
+        provider = builder.build()
+
+        c1 = provider.get_service(ConsumerWithNamed)
+        c2 = provider.get_service(ConsumerWithString)
+        assert c1.dep is c2.dep  # same singleton resolved both ways
 
 
 if __name__ == "__main__":

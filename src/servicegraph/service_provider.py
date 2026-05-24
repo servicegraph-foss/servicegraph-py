@@ -488,19 +488,27 @@ class ServiceProvider:
         removed = self.collection.remove(service_type, name)
 
         if removed:
+            singleton_to_dispose: Optional[Any] = None
+            session_instances_to_dispose: List[Any] = []
+
             # Clear cached singleton instance if it exists
-            if registration_key in self._singleton_instances:
-                with self._lock:
-                    instance = self._singleton_instances.pop(registration_key, None)
-                    if instance:
-                        self._dispose_service(instance)
+            with self._lock:
+                singleton_to_dispose = self._singleton_instances.pop(
+                    registration_key, None
+                )
 
             # Clear all session instances for this service (transient)
             with self._instance_lock:
-                for session_id, session_services in self._sessions.items():
+                for session_services in self._sessions.values():
                     if registration_key in session_services:
-                        instance = session_services.pop(registration_key)
-                        self._dispose_service(instance)
+                        session_instances_to_dispose.append(
+                            session_services.pop(registration_key)
+                        )
+
+            if singleton_to_dispose is not None:
+                self._dispose_service(singleton_to_dispose)
+            for instance in session_instances_to_dispose:
+                self._dispose_service(instance)
 
         return removed
 
@@ -521,20 +529,28 @@ class ServiceProvider:
         # Remove from collection
         count = self.collection.remove_all_by_type(service_type)
 
+        singleton_instances_to_dispose: List[Any] = []
+        session_instances_to_dispose: List[Any] = []
+
         # Clear cached singleton instances
         with self._lock:
             for key in keys_to_clear:
                 if key in self._singleton_instances:
-                    instance = self._singleton_instances.pop(key)
-                    self._dispose_service(instance)
+                    singleton_instances_to_dispose.append(
+                        self._singleton_instances.pop(key)
+                    )
 
         # Clear all session instances for these services (transient)
         with self._instance_lock:
-            for session_id, session_services in self._sessions.items():
+            for session_services in self._sessions.values():
                 for key in keys_to_clear:
                     if key in session_services:
-                        instance = session_services.pop(key)
-                        self._dispose_service(instance)
+                        session_instances_to_dispose.append(session_services.pop(key))
+
+        for instance in singleton_instances_to_dispose:
+            self._dispose_service(instance)
+        for instance in session_instances_to_dispose:
+            self._dispose_service(instance)
 
         return count
 
@@ -555,20 +571,28 @@ class ServiceProvider:
         # Remove from collection
         count = self.collection.remove_all_by_implementation(implementation)
 
+        singleton_instances_to_dispose: List[Any] = []
+        session_instances_to_dispose: List[Any] = []
+
         # Clear cached singleton instances
         with self._lock:
             for key in keys_to_clear:
                 if key in self._singleton_instances:
-                    instance = self._singleton_instances.pop(key)
-                    self._dispose_service(instance)
+                    singleton_instances_to_dispose.append(
+                        self._singleton_instances.pop(key)
+                    )
 
         # Clear all session instances for these services (transient)
         with self._instance_lock:
-            for session_id, session_services in self._sessions.items():
+            for session_services in self._sessions.values():
                 for key in keys_to_clear:
                     if key in session_services:
-                        instance = session_services.pop(key)
-                        self._dispose_service(instance)
+                        session_instances_to_dispose.append(session_services.pop(key))
+
+        for instance in singleton_instances_to_dispose:
+            self._dispose_service(instance)
+        for instance in session_instances_to_dispose:
+            self._dispose_service(instance)
 
         return count
 

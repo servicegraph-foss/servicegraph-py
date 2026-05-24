@@ -663,5 +663,88 @@ class TestDisposeSessionConcurrency:
         assert not errors, f"Thread errors: {errors}"
 
 
+class TestServiceRemovalConcurrency:
+    """Tests lock behavior for service-removal paths touching session caches."""
+
+    @staticmethod
+    def _make_probing_service(provider_ref, lock_held_results):
+        """Build a service whose close() coordinates with a lock probe thread."""
+        start_probe = threading.Event()
+        probe_done = threading.Event()
+
+        class _ProbingService:
+            _start_probe = start_probe
+            _probe_done = probe_done
+
+            def close(self):
+                self._start_probe.set()
+                self._probe_done.wait(timeout=2.0)
+
+        def probe():
+            start_probe.wait(timeout=2.0)
+            p = provider_ref[0]
+            acquired = p._instance_lock.acquire(blocking=False)
+            if acquired:
+                p._instance_lock.release()
+            lock_held_results.append(not acquired)
+            probe_done.set()
+
+        return _ProbingService, threading.Thread(target=probe, daemon=True)
+
+    def test_remove_service_does_not_hold_instance_lock_during_close(self):
+        """remove_service must not hold _instance_lock while closing session instances."""
+        lock_held: list = []
+        provider_ref: list = []
+
+        ProbingService, probe_thread = self._make_probing_service(
+            provider_ref, lock_held
+        )
+        probe_thread.start()
+
+        builder = ApplicationBuilder()
+        builder.services.add_transient(ProbingService)
+        provider = builder.build()
+        provider_ref.append(provider)
+
+        provider.get_service(ProbingService, "probe_session")
+        assert provider.remove_service(ProbingService) is True
+        probe_thread.join(timeout=5.0)
+
+        assert (
+            not probe_thread.is_alive()
+        ), "Probe thread timed out — possible deadlock."
+        assert lock_held == [False], (
+            "remove_service held _instance_lock while calling service.close(). "
+            "Concurrent session-aware calls can block for user cleanup duration."
+        )
+
+    def test_remove_all_by_type_does_not_hold_instance_lock_during_close(self):
+        """remove_all_by_type must not hold _instance_lock while closing session instances."""
+        lock_held: list = []
+        provider_ref: list = []
+
+        ProbingService, probe_thread = self._make_probing_service(
+            provider_ref, lock_held
+        )
+        probe_thread.start()
+
+        builder = ApplicationBuilder()
+        builder.services.add_transient(ProbingService)
+        provider = builder.build()
+        provider_ref.append(provider)
+
+        provider.get_service(ProbingService, "probe_session")
+        assert provider.remove_all_by_type(ProbingService) == 1
+        probe_thread.join(timeout=5.0)
+
+        assert (
+            not probe_thread.is_alive()
+        ), "Probe thread timed out — possible deadlock."
+        assert lock_held == [False], (
+            "remove_all_by_type held _instance_lock while calling service.close(). "
+            "Concurrent session-aware calls can block for user cleanup duration."
+        )
+
+
 if __name__ == "__main__":
     pytest.main([__file__])

@@ -19,7 +19,7 @@ pip install servicegraph
 - **Python 3.9+** (Python 3.8 is not supported due to syntax compatibility issues)
 - No external runtime dependencies (except `typing-extensions` for Python < 3.10)
 
-> **⚠️ IMPORTANT:** Version 0.1.0 is deprecated and will not work correctly. Please use version 0.1.4 or later.
+> **⚠️ IMPORTANT:** Version 0.1.0-0.1.3 is deprecated and will not work correctly. Please use version 0.1.4 or later.
 
 ## Quick Start
 
@@ -609,6 +609,37 @@ builder.services.add_named_singleton("push", INotificationService, PushNotificat
 # Resolve specific implementations
 smtp_service = provider.get_named_service("smtp", INotificationService)
 push_service = provider.get_named_service("push", INotificationService)
+```
+
+**Injecting named services via constructor** — use `Annotated` with the `Named()` helper so the container automatically resolves the correct implementation:
+
+```python
+from typing import Annotated
+from servicegraph.dependency_injection_utils import Named
+
+class NotificationRouter:
+    def __init__(
+        self,
+        smtp: Annotated[INotificationService, Named("smtp")],
+        push: Annotated[INotificationService, Named("push")],
+    ):
+        self.smtp = smtp
+        self.push = push
+
+builder.services.add_singleton(NotificationRouter)
+router = provider.get_service(NotificationRouter)  # smtp and push injected automatically
+```
+
+A plain string is accepted as a shorthand for `Named()`, so the following is equivalent:
+
+```python
+class NotificationRouter:
+    def __init__(
+        self,
+        smtp: Annotated[INotificationService, "smtp"],
+        push: Annotated[INotificationService, "push"],
+    ):
+        ...
 ```
 
 **Why it matters**: Named registration is essential for scenarios like multi-tenant applications, A/B testing implementations, or fallback service patterns. Rather than creating separate interfaces for functionally identical services, named registration maintains clean abstractions while providing implementation flexibility.

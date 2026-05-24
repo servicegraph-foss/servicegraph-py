@@ -457,5 +457,52 @@ class TestConfigurationBuilder:
             os.unlink(invalid_json_file)
 
 
+    def test_configure_configuration_clears_stale_singleton_cache(self):
+        """configure_configuration after build() must not serve stale IConfiguration."""
+        env_key = "SG_TEST_PHASE"
+        try:
+            builder = ApplicationBuilder()
+
+            os.environ[env_key] = "first"
+            builder.configure_configuration(
+                lambda cb: cb.add_environment_variables("")
+            )
+            provider = builder.build()
+
+            # Force caching of the first configuration singleton.
+            first = provider.get_service(IConfiguration)
+            assert first.get_value(env_key) == "first"
+
+            # Reconfigure — must evict the cached singleton.
+            os.environ[env_key] = "second"
+            builder.configure_configuration(
+                lambda cb: cb.add_environment_variables("")
+            )
+
+            second = provider.get_service(IConfiguration)
+            assert second.get_value(env_key) == "second", (
+                "ServiceProvider served a stale IConfiguration after configure_configuration was called."
+            )
+        finally:
+            os.environ.pop(env_key, None)
+
+    def test_use_configuration_clears_stale_singleton_cache(self):
+        """use_configuration after build() must not serve stale IConfiguration."""
+        builder = ApplicationBuilder()
+        provider = builder.build()
+
+        # Prime the cache (forces the singleton to be stored).
+        provider.get_service(IConfiguration)
+
+        # Build a distinct configuration object and hand it to the builder.
+        new_config = ConfigurationBuilder().build()
+        builder.use_configuration(new_config)
+
+        resolved = provider.get_service(IConfiguration)
+        assert resolved is new_config, (
+            "ServiceProvider served a stale IConfiguration after use_configuration was called."
+        )
+
+
 if __name__ == "__main__":
     pytest.main([__file__])
