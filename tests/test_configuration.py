@@ -456,7 +456,6 @@ class TestConfigurationBuilder:
         finally:
             os.unlink(invalid_json_file)
 
-
     def test_configure_configuration_clears_stale_singleton_cache(self):
         """configure_configuration after build() must not serve stale IConfiguration."""
         env_key = "SG_TEST_PHASE"
@@ -464,9 +463,7 @@ class TestConfigurationBuilder:
             builder = ApplicationBuilder()
 
             os.environ[env_key] = "first"
-            builder.configure_configuration(
-                lambda cb: cb.add_environment_variables("")
-            )
+            builder.configure_configuration(lambda cb: cb.add_environment_variables(""))
             provider = builder.build()
 
             # Force caching of the first configuration singleton.
@@ -475,14 +472,12 @@ class TestConfigurationBuilder:
 
             # Reconfigure — must evict the cached singleton.
             os.environ[env_key] = "second"
-            builder.configure_configuration(
-                lambda cb: cb.add_environment_variables("")
-            )
+            builder.configure_configuration(lambda cb: cb.add_environment_variables(""))
 
             second = provider.get_service(IConfiguration)
-            assert second.get_value(env_key) == "second", (
-                "ServiceProvider served a stale IConfiguration after configure_configuration was called."
-            )
+            assert (
+                second.get_value(env_key) == "second"
+            ), "ServiceProvider served a stale IConfiguration after configure_configuration was called."
         finally:
             os.environ.pop(env_key, None)
 
@@ -499,9 +494,9 @@ class TestConfigurationBuilder:
         builder.use_configuration(new_config)
 
         resolved = provider.get_service(IConfiguration)
-        assert resolved is new_config, (
-            "ServiceProvider served a stale IConfiguration after use_configuration was called."
-        )
+        assert (
+            resolved is new_config
+        ), "ServiceProvider served a stale IConfiguration after use_configuration was called."
 
 
 if __name__ == "__main__":
