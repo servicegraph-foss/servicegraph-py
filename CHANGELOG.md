@@ -5,6 +5,18 @@ All notable changes to the servicegraph project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.5] - 2026-03-30
+
+### Fixed
+- **Session expiry only triggered on new session creation** - Expired sessions now accumulate correctly even in low-traffic or serverless environments. `_cleanup_expired_sessions` is now also called from `dispose_session`, `get_session_info`, and `get_active_session_count`, so stale sessions are collected on any lightweight lifecycle path — not only when a new session is first accessed.
+- **`remove_service` / `remove_all_by_type` / `remove_all_by_implementation` held `_instance_lock` during user cleanup** - All three removal methods now follow the collect-under-lock, dispose-after-lock pattern: singleton and session instances are gathered atomically under their respective locks, then all `close()`/`dispose()` calls happen after both locks are released. This eliminates a potential deadlock when cleanup code re-entered the container.
+- **Lifecycle validation only ran against already-registered dependencies** - Registering a longer-lived service before a shorter-lived dependency it depends on bypassed the captive dependency check. `ServiceCollection.validate_lifecycle_dependencies()` is now called at the top of `ApplicationBuilder.build()`, performing a full graph walk across all registrations and catching out-of-order violations regardless of registration order.
+- **`configure_configuration` / `use_configuration` left a stale `IConfiguration` in the singleton cache** - Calling either method after `build()` replaced the registration in `ServiceCollection` but left the old instance cached in `ServiceProvider._singleton_instances`. Subsequent `get_service(IConfiguration)` calls returned the old object. Both methods now evict the cached entry immediately so the provider picks up the new configuration on the next resolution.
+- **Plain string in `Annotated` metadata silently skipped named service lookup** - `Annotated[IFoo, "primary"]` was silently treated as an unqualified dependency because only `NamedService` instances were recognized as name markers. The dependency would then fail with an unhelpful `KeyError`. `extract_named_dependencies` now also accepts a bare `str` as a shorthand for `Named("...")`, making `Annotated[IFoo, "primary"]` fully equivalent to `Annotated[IFoo, Named("primary")]`.
+
+### Changed
+- **Lifecycle validation refactored to a rule-table pattern** - The cascaded `if`/`elif` blocks in `_validate_lifecycle_dependency` were replaced with three focused helpers (`_validate_lifecycle_dependency_for_param`, `_find_dependency_registration`, `_ensure_lifecycle_compatible`) and an `invalid_combinations` dictionary. Both call sites — registration-time and build-time — share the same path, eliminating duplicated logic.
+
 ## [0.1.4] - 2026-03-20
 
 ### Fixed

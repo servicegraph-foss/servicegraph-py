@@ -391,41 +391,135 @@ class ServiceCollection:
         :param param_name: Name of the parameter for error messages
         :raises ValueError: If the dependency lifetime is incompatible
         """
-        # Find the dependency's registration
-        dep_key = self._get_service_key(dependency_type)
-        if dep_key not in self._registrations:
-            # Dependency not registered - will be caught elsewhere
+        self._validate_lifecycle_dependency_for_param(
+            parent_lifetime,
+            dependency_type,
+            parent_name,
+            param_name,
+            named_deps={},
+        )
+
+    def _validate_lifecycle_dependency_for_param(
+        self,
+        parent_lifetime: ServiceLifetime,
+        dependency_type: type[Any],
+        parent_name: str,
+        param_name: str,
+        named_deps: Dict[str, str],
+    ) -> None:
+        """Validate lifecycle compatibility for one constructor parameter."""
+        dep_registration, named_service = self._find_dependency_registration(
+            dependency_type, param_name, named_deps
+        )
+        if dep_registration is None:
+            # Missing dependency registration is handled by resolution-time checks.
             return
 
-        dep_registration = self._registrations[dep_key]
-        dep_lifetime = dep_registration.lifetime
+        self._ensure_lifecycle_compatible(
+            parent_lifetime,
+            dep_registration.lifetime,
+            parent_name,
+            param_name,
+            dependency_type,
+            named_service,
+        )
 
-        # Singleton cannot depend on Transient or Scoped
+    def _find_dependency_registration(
+        self,
+        dependency_type: type[Any],
+        param_name: str,
+        named_deps: Dict[str, str],
+    ) -> tuple[Optional[ServiceRegistration], Optional[str]]:
+        """Find dependency registration for a parameter, honoring named bindings."""
+        if param_name in named_deps:
+            service_name = named_deps[param_name]
+            named_key = f"{self._get_service_key(dependency_type)}#{service_name}"
+            return self.try_get_registration(named_key), service_name
+
+        dep_key = self._get_service_key(dependency_type)
+        return self.try_get_registration(dep_key), None
+
+    def _ensure_lifecycle_compatible(
+        self,
+        parent_lifetime: ServiceLifetime,
+        dependency_lifetime: ServiceLifetime,
+        parent_name: str,
+        param_name: str,
+        dependency_type: type[Any],
+        dependency_name: Optional[str] = None,
+    ) -> None:
+        """Raise when parent/dependency lifetime combination is invalid."""
+        invalid_combinations = {
+            ServiceLifetime.SINGLETON: {
+                ServiceLifetime.TRANSIENT,
+                ServiceLifetime.SCOPED,
+            },
+            ServiceLifetime.TRANSIENT: {ServiceLifetime.SCOPED},
+        }
+
+        if dependency_lifetime not in invalid_combinations.get(parent_lifetime, set()):
+            return
+
+        named_hint = (
+            f" with name '{dependency_name}'" if dependency_name is not None else ""
+        )
+
         if parent_lifetime == ServiceLifetime.SINGLETON:
-            if dep_lifetime in (ServiceLifetime.TRANSIENT, ServiceLifetime.SCOPED):
-                raise ValueError(
-                    f"Invalid dependency in {parent_name}: Singleton services cannot depend on "
-                    f"{dep_lifetime.name.lower()} services.\n"
-                    f"Parameter '{param_name}' of type '{dependency_type.__name__}' is registered as "
-                    f"{dep_lifetime.name.lower()}, but {parent_name} is a singleton.\n"
-                    f"This would break singleton semantics as the dependency could have different instances.\n"
-                    f"Solution: Register '{dependency_type.__name__}' as a singleton, or change {parent_name} "
-                    f"to transient/scoped."
-                )
+            raise ValueError(
+                f"Invalid dependency in {parent_name}: Singleton services cannot depend on "
+                f"{dependency_lifetime.name.lower()} services.\n"
+                f"Parameter '{param_name}' of type '{dependency_type.__name__}'{named_hint} is registered as "
+                f"{dependency_lifetime.name.lower()}, but {parent_name} is a singleton.\n"
+                f"This would break singleton semantics as the dependency could have different instances.\n"
+                f"Solution: Register '{dependency_type.__name__}'"
+                f"{f' (named {repr(dependency_name)})' if dependency_name is not None else ''} as a singleton, "
+                f"or change {parent_name} to transient/scoped."
+            )
 
-        # Transient cannot depend on Scoped
-        elif parent_lifetime == ServiceLifetime.TRANSIENT:
-            if dep_lifetime == ServiceLifetime.SCOPED:
-                raise ValueError(
-                    f"Invalid dependency in {parent_name}: Transient services cannot depend on scoped services.\n"
-                    f"Parameter '{param_name}' of type '{dependency_type.__name__}' is registered as scoped, "
-                    f"but {parent_name} is transient.\n"
-                    f"Scoped services have a narrower lifetime than transient services.\n"
-                    f"Solution: Register '{dependency_type.__name__}' as transient or singleton, or change "
-                    f"{parent_name} to scoped."
-                )
+        raise ValueError(
+            f"Invalid dependency in {parent_name}: Transient services cannot depend on scoped services.\n"
+            f"Parameter '{param_name}' of type '{dependency_type.__name__}'{named_hint} is registered as scoped, "
+            f"but {parent_name} is transient.\n"
+            f"Scoped services have a narrower lifetime than transient services.\n"
+            f"Solution: Register '{dependency_type.__name__}'"
+            f"{f' (named {repr(dependency_name)})' if dependency_name is not None else ''} as transient or singleton, "
+            f"or change {parent_name} to scoped."
+        )
 
-        # Scoped can depend on anything (Singleton, Transient, Scoped) - no validation needed
+    def validate_lifecycle_dependencies(self) -> None:
+        """Validate lifecycle dependencies across all current registrations.
+
+        This full-graph validation catches out-of-order registrations that can
+        be missed by registration-time checks.
+        """
+        for registration in self.iter_registrations():
+            implementation = registration.implementation
+
+            try:
+                sig = inspect.signature(implementation.__init__)
+            except (ValueError, TypeError):
+                continue
+
+            named_deps = extract_named_dependencies(implementation)
+
+            for param_name, param in sig.parameters.items():
+                if param_name == "self":
+                    continue
+
+                if param.annotation == inspect.Parameter.empty:
+                    continue
+
+                base_type = get_base_type(param.annotation)
+                if self._is_primitive_type(base_type):
+                    continue
+
+                self._validate_lifecycle_dependency_for_param(
+                    registration.lifetime,
+                    base_type,
+                    implementation.__name__,
+                    param_name,
+                    named_deps,
+                )
 
     def _create_factory(
         self, implementation: type[T], lifetime: ServiceLifetime
@@ -488,8 +582,12 @@ class ServiceCollection:
                 continue
 
             # Validate lifecycle compatibility
-            self._validate_lifecycle_dependency(
-                lifetime, base_type, implementation.__name__, param_name
+            self._validate_lifecycle_dependency_for_param(
+                lifetime,
+                base_type,
+                implementation.__name__,
+                param_name,
+                named_deps,
             )
 
         def factory(provider: "ServiceProvider") -> Any:

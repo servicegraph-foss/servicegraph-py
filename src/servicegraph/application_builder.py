@@ -36,6 +36,8 @@ class ApplicationBuilder:
 
         # Replace any existing configuration registration with the new one
         self.services.add_instance(IConfiguration, self._configuration)
+        # Evict any cached singleton so the provider immediately reflects the new config.
+        self._evict_configuration_singleton()
         return self
 
     def use_configuration(self, configuration: IConfiguration) -> "ApplicationBuilder":
@@ -43,7 +45,26 @@ class ApplicationBuilder:
         self._configuration = configuration
         # Replace any existing configuration registration with the new one
         self.services.add_instance(IConfiguration, configuration)
+        # Evict any cached singleton so the provider immediately reflects the new config.
+        self._evict_configuration_singleton()
         return self
+
+    def _evict_configuration_singleton(self) -> None:
+        """Remove the cached IConfiguration singleton from the active provider, if any.
+
+        Called after each configuration update so that the next get_service(IConfiguration)
+        picks up the current registration rather than a stale cached instance.
+        Only acts when the provider was built from this builder's service collection.
+        """
+        provider = ServiceProvider._instance
+        if (
+            provider is not None
+            and getattr(provider, "_initialized", False)
+            and provider._collection is self.services
+        ):
+            key = provider._get_service_key(IConfiguration)
+            with ServiceProvider._lock:
+                provider._singleton_instances.pop(key, None)
 
     @property
     def configuration(self) -> Optional[IConfiguration]:
@@ -82,4 +103,6 @@ class ApplicationBuilder:
 
     def build(self) -> ServiceProvider:
         """Mimics builder.Build()"""
+        # Validate dependency lifetimes across the full registration graph.
+        self.services.validate_lifecycle_dependencies()
         return ServiceProvider(self.services)

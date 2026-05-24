@@ -133,3 +133,31 @@ def test_transient_can_depend_on_singleton():
     # Should work fine
     service = provider.get_service(TransientDependsOnSingleton)
     assert service.singleton.get_value() == "singleton"
+
+
+def test_out_of_order_singleton_then_transient_fails_at_build():
+    """Build-time validation catches singleton->transient violation registered out of order."""
+    builder = ApplicationBuilder()
+
+    # Register invalid parent first; dependency does not exist yet.
+    builder.services.add_singleton(SingletonDependsOnTransient)
+    builder.services.add_transient(TransientService)
+
+    with pytest.raises(
+        ValueError, match="Singleton services cannot depend on transient services"
+    ):
+        builder.build()
+
+
+def test_out_of_order_transient_then_scoped_fails_at_build():
+    """Build-time validation catches transient->scoped violation registered out of order."""
+    builder = ApplicationBuilder()
+
+    # Register invalid parent first; dependency does not exist yet.
+    builder.services.add_transient(TransientDependsOnScoped)
+    builder.services.add_scoped(ScopedService)
+
+    with pytest.raises(
+        ValueError, match="Transient services cannot depend on scoped services"
+    ):
+        builder.build()

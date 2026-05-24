@@ -58,6 +58,11 @@ def extract_named_dependencies(implementation: type[Any]) -> Dict[str, str]:
                     if isinstance(metadata, NamedService):
                         named_deps[param_name] = metadata.name
                         break
+                    elif isinstance(metadata, str):
+                        # Plain string is accepted as a shorthand for Named(string).
+                        # e.g. Annotated[IFoo, "primary"] == Annotated[IFoo, Named("primary")]
+                        named_deps[param_name] = metadata
+                        break
 
     return named_deps
 

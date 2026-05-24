@@ -306,6 +306,62 @@ class TestServiceLifetimeManagement:
 class TestMemoryManagement:
     """Test memory management and cleanup behaviors."""
 
+    def test_get_active_session_count_triggers_expired_cleanup(self):
+        """Expired sessions should be cleaned during count checks even without new session creation."""
+        closed_count = 0
+
+        class CloseTrackedService:
+            def close(self):
+                nonlocal closed_count
+                closed_count += 1
+
+        builder = ApplicationBuilder()
+        builder.services.add_transient(CloseTrackedService)
+        provider = builder.build()
+
+        provider.get_service(CloseTrackedService, "stale_session")
+
+        # Back-date so the session is expired before any new session is created.
+        with provider._instance_lock:
+            provider._session_timestamps["stale_session"] = (
+                datetime.now(timezone.utc)
+                - provider._session_timeout
+                - timedelta(seconds=1)
+            )
+
+        assert provider.get_active_session_count() == 0
+        assert provider.get_session_info("stale_session") is None
+        assert closed_count == 1
+
+    def test_dispose_session_triggers_expired_cleanup(self):
+        """Disposing one session should also clean unrelated expired sessions."""
+        closed_count = 0
+
+        class CloseTrackedService:
+            def close(self):
+                nonlocal closed_count
+                closed_count += 1
+
+        builder = ApplicationBuilder()
+        builder.services.add_transient(CloseTrackedService)
+        provider = builder.build()
+
+        provider.get_service(CloseTrackedService, "stale_session")
+        provider.get_service(CloseTrackedService, "live_session")
+
+        with provider._instance_lock:
+            provider._session_timestamps["stale_session"] = (
+                datetime.now(timezone.utc)
+                - provider._session_timeout
+                - timedelta(seconds=1)
+            )
+
+        assert provider.dispose_session("live_session") is True
+        assert provider.get_active_session_count() == 0
+        assert provider.get_session_info("stale_session") is None
+        assert provider.get_session_info("live_session") is None
+        assert closed_count == 2
+
     def test_session_cleanup_prevents_memory_leaks(self):
         """Test that session cleanup prevents memory accumulation."""
         builder = ApplicationBuilder()
@@ -605,6 +661,89 @@ class TestDisposeSessionConcurrency:
             not t.is_alive() for t in threads
         ), "One or more threads are still alive — likely a deadlock."
         assert not errors, f"Thread errors: {errors}"
+
+
+class TestServiceRemovalConcurrency:
+    """Tests lock behavior for service-removal paths touching session caches."""
+
+    @staticmethod
+    def _make_probing_service(provider_ref, lock_held_results):
+        """Build a service whose close() coordinates with a lock probe thread."""
+        start_probe = threading.Event()
+        probe_done = threading.Event()
+
+        class _ProbingService:
+            _start_probe = start_probe
+            _probe_done = probe_done
+
+            def close(self):
+                self._start_probe.set()
+                self._probe_done.wait(timeout=2.0)
+
+        def probe():
+            start_probe.wait(timeout=2.0)
+            p = provider_ref[0]
+            acquired = p._instance_lock.acquire(blocking=False)
+            if acquired:
+                p._instance_lock.release()
+            lock_held_results.append(not acquired)
+            probe_done.set()
+
+        return _ProbingService, threading.Thread(target=probe, daemon=True)
+
+    def test_remove_service_does_not_hold_instance_lock_during_close(self):
+        """remove_service must not hold _instance_lock while closing session instances."""
+        lock_held: list = []
+        provider_ref: list = []
+
+        ProbingService, probe_thread = self._make_probing_service(
+            provider_ref, lock_held
+        )
+        probe_thread.start()
+
+        builder = ApplicationBuilder()
+        builder.services.add_transient(ProbingService)
+        provider = builder.build()
+        provider_ref.append(provider)
+
+        provider.get_service(ProbingService, "probe_session")
+        assert provider.remove_service(ProbingService) is True
+        probe_thread.join(timeout=5.0)
+
+        assert (
+            not probe_thread.is_alive()
+        ), "Probe thread timed out — possible deadlock."
+        assert lock_held == [False], (
+            "remove_service held _instance_lock while calling service.close(). "
+            "Concurrent session-aware calls can block for user cleanup duration."
+        )
+
+    def test_remove_all_by_type_does_not_hold_instance_lock_during_close(self):
+        """remove_all_by_type must not hold _instance_lock while closing session instances."""
+        lock_held: list = []
+        provider_ref: list = []
+
+        ProbingService, probe_thread = self._make_probing_service(
+            provider_ref, lock_held
+        )
+        probe_thread.start()
+
+        builder = ApplicationBuilder()
+        builder.services.add_transient(ProbingService)
+        provider = builder.build()
+        provider_ref.append(provider)
+
+        provider.get_service(ProbingService, "probe_session")
+        assert provider.remove_all_by_type(ProbingService) == 1
+        probe_thread.join(timeout=5.0)
+
+        assert (
+            not probe_thread.is_alive()
+        ), "Probe thread timed out — possible deadlock."
+        assert lock_held == [False], (
+            "remove_all_by_type held _instance_lock while calling service.close(). "
+            "Concurrent session-aware calls can block for user cleanup duration."
+        )
 
 
 if __name__ == "__main__":
